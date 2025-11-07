@@ -11,19 +11,16 @@ scene.background = new THREE.Color(0x04070f);
 scene.fog = new THREE.Fog(0x04070f, 45, 140);
 
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 300);
-const cameraRig = new THREE.Group();
-scene.add(cameraRig);
-cameraRig.add(camera);
-camera.position.set(0, 10, 25);
+camera.position.set(0, 18, 32);
+scene.add(camera);
 
 const cameraState = {
-    orbitAngle: 0,
-    orbitSpeed: 0.35,
-    radius: 34,
-    height: 14,
+    offset: new THREE.Vector3(0, 18, 32),
+    manual: new THREE.Vector3(),
+    limits: { x: 24, z: 24, yMin: 10, yMax: 32 },
 };
 
-const pointer = { x: 0, y: 0 };
+const cameraInput = { forward: false, backward: false, left: false, right: false, up: false, down: false };
 
 const hemi = new THREE.HemisphereLight(0xa1b9ff, 0x05070d, 0.8);
 const dir = new THREE.DirectionalLight(0xffc7a4, 1.2);
@@ -96,7 +93,6 @@ function spawnCar() {
         axis: Math.random() > 0.5 ? 'x' : 'z',
         dir: Math.random() > 0.5 ? 1 : -1,
         speed: THREE.MathUtils.randFloat(6, 12),
-        offset: Math.random() * Math.PI * 2,
     };
     cars.push(car);
     scene.add(car);
@@ -130,30 +126,61 @@ for (let i = 0; i < 16; i += 1) {
     spawnNode();
 }
 
-const input = { forward: false, backward: false, left: false, right: false, boost: false };
+const playerInput = { forward: false, backward: false, left: false, right: false, boost: false };
+
+function handleKeyChange(key, value) {
+    let handled = true;
+    switch (key) {
+        case 'w':
+            playerInput.forward = value;
+            break;
+        case 's':
+            playerInput.backward = value;
+            break;
+        case 'a':
+            playerInput.left = value;
+            break;
+        case 'd':
+            playerInput.right = value;
+            break;
+        case 'shift':
+            playerInput.boost = value;
+            break;
+        case 'arrowup':
+            cameraInput.forward = value;
+            break;
+        case 'arrowdown':
+            cameraInput.backward = value;
+            break;
+        case 'arrowleft':
+            cameraInput.left = value;
+            break;
+        case 'arrowright':
+            cameraInput.right = value;
+            break;
+        case 'q':
+            cameraInput.up = value;
+            break;
+        case 'e':
+            cameraInput.down = value;
+            break;
+        case 'r':
+            if (value) resetGame();
+            break;
+        default:
+            handled = false;
+    }
+    return handled;
+}
 
 window.addEventListener('keydown', (event) => {
-    const key = event.key.toLowerCase();
-    if (key === 'w' || key === 'arrowup') input.forward = true;
-    if (key === 's' || key === 'arrowdown') input.backward = true;
-    if (key === 'a' || key === 'arrowleft') input.left = true;
-    if (key === 'd' || key === 'arrowright') input.right = true;
-    if (key === 'shift') input.boost = true;
-    if (key === 'r') resetGame();
+    const handled = handleKeyChange(event.key.toLowerCase(), true);
+    if (handled) event.preventDefault();
 });
 
 window.addEventListener('keyup', (event) => {
-    const key = event.key.toLowerCase();
-    if (key === 'w' || key === 'arrowup') input.forward = false;
-    if (key === 's' || key === 'arrowdown') input.backward = false;
-    if (key === 'a' || key === 'arrowleft') input.left = false;
-    if (key === 'd' || key === 'arrowright') input.right = false;
-    if (key === 'shift') input.boost = false;
-});
-
-window.addEventListener('pointermove', (event) => {
-    pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-    pointer.y = (event.clientY / window.innerHeight) * 2 - 1;
+    const handled = handleKeyChange(event.key.toLowerCase(), false);
+    if (handled) event.preventDefault();
 });
 
 const scoreEl = document.querySelector('[data-score]');
@@ -202,20 +229,22 @@ function resetGame() {
     state.time = 0;
     state.active = true;
     player.position.set(0, 1.2, 0);
+    cameraState.manual.set(0, 0, 0);
+    cameraState.offset.set(0, 18, 32);
     setStatus('Collect aqua nodes to keep the district online.');
     updateUI();
 }
 
 function updatePlayer(delta) {
     const move = new THREE.Vector3();
-    if (input.forward) move.z -= 1;
-    if (input.backward) move.z += 1;
-    if (input.left) move.x -= 1;
-    if (input.right) move.x += 1;
+    if (playerInput.forward) move.z -= 1;
+    if (playerInput.backward) move.z += 1;
+    if (playerInput.left) move.x -= 1;
+    if (playerInput.right) move.x += 1;
     if (move.lengthSq() > 0) {
         move.normalize();
     }
-    const speed = (input.boost ? 18 : 12) * delta;
+    const speed = (playerInput.boost ? 18 : 12) * delta;
     move.multiplyScalar(speed);
     player.position.add(move);
     player.position.x = THREE.MathUtils.clamp(player.position.x, -playArea, playArea);
@@ -229,18 +258,28 @@ function updatePlayer(delta) {
     playerShadow.position.z = player.position.z;
 }
 
+function handleCameraPan(delta) {
+    const panSpeed = 20;
+    if (cameraInput.forward) cameraState.manual.z -= panSpeed * delta;
+    if (cameraInput.backward) cameraState.manual.z += panSpeed * delta;
+    if (cameraInput.left) cameraState.manual.x -= panSpeed * delta;
+    if (cameraInput.right) cameraState.manual.x += panSpeed * delta;
+
+    cameraState.manual.x = THREE.MathUtils.clamp(cameraState.manual.x, -cameraState.limits.x, cameraState.limits.x);
+    cameraState.manual.z = THREE.MathUtils.clamp(cameraState.manual.z, -cameraState.limits.z, cameraState.limits.z);
+
+    const verticalSpeed = 14;
+    if (cameraInput.up) cameraState.offset.y += verticalSpeed * delta;
+    if (cameraInput.down) cameraState.offset.y -= verticalSpeed * delta;
+    cameraState.offset.y = THREE.MathUtils.clamp(cameraState.offset.y, cameraState.limits.yMin, cameraState.limits.yMax);
+}
+
 function updateCamera(delta) {
-    cameraState.orbitAngle += cameraState.orbitSpeed * delta;
-    const radius = cameraState.radius + pointer.x * 4;
-    const targetY = cameraState.height + pointer.y * 3;
-    const targetPosition = new THREE.Vector3(
-        player.position.x + Math.cos(cameraState.orbitAngle) * radius,
-        targetY,
-        player.position.z + Math.sin(cameraState.orbitAngle) * radius
-    );
-    camera.position.lerp(targetPosition, 0.05);
-    const lookAt = new THREE.Vector3(player.position.x, player.position.y + 3, player.position.z);
-    camera.lookAt(lookAt);
+    handleCameraPan(delta);
+    const target = player.position.clone().add(cameraState.manual);
+    const desiredPosition = target.clone().add(cameraState.offset);
+    camera.position.lerp(desiredPosition, 0.08);
+    camera.lookAt(target);
 }
 
 function updateCars(delta) {
@@ -279,6 +318,7 @@ function updateNodes(delta) {
 function collectNode(node) {
     state.score += 25;
     state.energy = Math.min(100, state.energy + 18);
+    state.best = Math.max(state.best, state.score);
     setStatus('Node stabilized. Keep sweeping.');
     node.position.set(randomRange(-playArea, playArea), 1.4, randomRange(-playArea, playArea));
     node.userData.offset = Math.random() * Math.PI * 2;
