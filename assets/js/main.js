@@ -1,5 +1,38 @@
 ﻿import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
 
+const SETTINGS_STORAGE_KEY = 'beefbeaterCameraSettings';
+const defaultCameraSettings = {
+    offsetX: -6,
+    offsetY: 12,
+    offsetZ: 30,
+    panLimitX: 18,
+    panLimitZ: 18,
+    minHeight: 8,
+    maxHeight: 24,
+    panSpeed: 18,
+};
+
+function loadCameraSettings() {
+    try {
+        const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
+        if (!stored) return { ...defaultCameraSettings };
+        return { ...defaultCameraSettings, ...JSON.parse(stored) };
+    } catch (error) {
+        console.warn('Unable to load camera settings; using defaults.', error);
+        return { ...defaultCameraSettings };
+    }
+}
+
+function persistCameraSettings(settings) {
+    try {
+        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    } catch (error) {
+        console.warn('Unable to save camera settings.', error);
+    }
+}
+
+let cameraSettings = loadCameraSettings();
+
 const container = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
 renderer.setPixelRatio(window.devicePixelRatio);
@@ -11,16 +44,33 @@ scene.background = new THREE.Color(0x04070f);
 scene.fog = new THREE.Fog(0x04070f, 45, 140);
 
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 300);
-camera.position.set(-6, 12, 30);
+camera.position.set(cameraSettings.offsetX, cameraSettings.offsetY, cameraSettings.offsetZ);
 scene.add(camera);
 
 const cameraState = {
-    offset: new THREE.Vector3(-6, 12, 30),
+    offset: new THREE.Vector3(cameraSettings.offsetX, cameraSettings.offsetY, cameraSettings.offsetZ),
     manual: new THREE.Vector3(),
-    limits: { x: 18, z: 18, yMin: 8, yMax: 24 },
+    limits: {
+        x: cameraSettings.panLimitX,
+        z: cameraSettings.panLimitZ,
+        yMin: cameraSettings.minHeight,
+        yMax: cameraSettings.maxHeight,
+    },
 };
 
 const cameraInput = { forward: false, backward: false, left: false, right: false, scrollDelta: 0 };
+
+function applyCameraSettings() {
+    cameraState.offset.set(cameraSettings.offsetX, cameraSettings.offsetY, cameraSettings.offsetZ);
+    cameraState.limits.x = Math.abs(cameraSettings.panLimitX);
+    cameraState.limits.z = Math.abs(cameraSettings.panLimitZ);
+    cameraState.limits.yMin = Math.min(cameraSettings.minHeight, cameraSettings.maxHeight);
+    cameraState.limits.yMax = Math.max(cameraSettings.minHeight, cameraSettings.maxHeight);
+    cameraState.manual.x = THREE.MathUtils.clamp(cameraState.manual.x, -cameraState.limits.x, cameraState.limits.x);
+    cameraState.manual.z = THREE.MathUtils.clamp(cameraState.manual.z, -cameraState.limits.z, cameraState.limits.z);
+}
+
+applyCameraSettings();
 
 const hemi = new THREE.HemisphereLight(0xa1b9ff, 0x05070d, 0.8);
 const dir = new THREE.DirectionalLight(0xffc7a4, 1.2);
@@ -191,6 +241,8 @@ window.addEventListener(
 const scoreEl = document.querySelector('[data-score]');
 const bestEl = document.querySelector('[data-best]');
 const resetButton = document.getElementById('reset-button');
+const cameraForm = document.getElementById('camera-form');
+const saveSettingsButton = document.getElementById('save-settings');
 
 const state = {
     score: 0,
@@ -198,6 +250,65 @@ const state = {
 };
 
 resetButton.addEventListener('click', resetGame);
+
+function populateCameraForm() {
+    if (!cameraForm) return;
+    const mapping = {
+        offsetX: cameraSettings.offsetX,
+        offsetY: cameraSettings.offsetY,
+        offsetZ: cameraSettings.offsetZ,
+        panLimitX: cameraSettings.panLimitX,
+        panLimitZ: cameraSettings.panLimitZ,
+        minHeight: cameraSettings.minHeight,
+        maxHeight: cameraSettings.maxHeight,
+        panSpeed: cameraSettings.panSpeed,
+    };
+    Object.entries(mapping).forEach(([field, value]) => {
+        if (cameraForm.elements[field]) {
+            cameraForm.elements[field].value = value;
+        }
+    });
+}
+
+function toNumber(value, fallback) {
+    const parsed = parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+let saveFeedbackTimeout;
+function handleSaveSettings() {
+    if (!cameraForm) return;
+    const formData = new FormData(cameraForm);
+    cameraSettings = {
+        offsetX: toNumber(formData.get('offsetX'), cameraSettings.offsetX),
+        offsetY: toNumber(formData.get('offsetY'), cameraSettings.offsetY),
+        offsetZ: toNumber(formData.get('offsetZ'), cameraSettings.offsetZ),
+        panLimitX: Math.abs(toNumber(formData.get('panLimitX'), cameraSettings.panLimitX)),
+        panLimitZ: Math.abs(toNumber(formData.get('panLimitZ'), cameraSettings.panLimitZ)),
+        minHeight: toNumber(formData.get('minHeight'), cameraSettings.minHeight),
+        maxHeight: toNumber(formData.get('maxHeight'), cameraSettings.maxHeight),
+        panSpeed: Math.max(0.1, toNumber(formData.get('panSpeed'), cameraSettings.panSpeed)),
+    };
+    if (cameraSettings.minHeight > cameraSettings.maxHeight) {
+        cameraSettings.maxHeight = cameraSettings.minHeight + 1;
+    }
+    persistCameraSettings(cameraSettings);
+    applyCameraSettings();
+    camera.position.set(cameraSettings.offsetX, cameraSettings.offsetY, cameraSettings.offsetZ);
+    if (saveSettingsButton) {
+        const original = saveSettingsButton.textContent;
+        saveSettingsButton.textContent = 'Saved!';
+        clearTimeout(saveFeedbackTimeout);
+        saveFeedbackTimeout = setTimeout(() => {
+            saveSettingsButton.textContent = original;
+        }, 1400);
+    }
+}
+
+populateCameraForm();
+if (saveSettingsButton) {
+    saveSettingsButton.addEventListener('click', handleSaveSettings);
+}
 
 function updateUI() {
     scoreEl.textContent = Math.round(state.score);
@@ -208,7 +319,8 @@ function resetGame() {
     state.score = 0;
     player.position.set(0, 1.2, 0);
     cameraState.manual.set(0, 0, 0);
-    cameraState.offset.set(-6, 12, 30);
+    cameraState.offset.set(cameraSettings.offsetX, cameraSettings.offsetY, cameraSettings.offsetZ);
+    camera.position.set(cameraSettings.offsetX, cameraSettings.offsetY, cameraSettings.offsetZ);
     updateUI();
 }
 
@@ -236,7 +348,7 @@ function updatePlayer(delta) {
 }
 
 function handleCameraPan(delta) {
-    const panSpeed = 20;
+    const panSpeed = cameraSettings.panSpeed;
     if (cameraInput.forward) cameraState.manual.z -= panSpeed * delta;
     if (cameraInput.backward) cameraState.manual.z += panSpeed * delta;
     if (cameraInput.left) cameraState.manual.x -= panSpeed * delta;
