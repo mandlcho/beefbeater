@@ -31,4 +31,4 @@ Follow Conventional Commits (e.g., `feat: add skyline particles`, `fix: clamp ca
 `.github/workflows/pages.yml` builds the repository root and publishes to the `github-pages` environment on every push to `main` or manual dispatch. Keep the playable experience rooted at `/`; update the `path` input only if you reorganize the project tree.
 
 ## Three.js Gameplay Notes
-The camera is fixed-angle but user-controlled: arrow keys pan the view, Q/E adjusts altitude. Modify `cameraState` and `handleCameraPan` if you need different bounds or speeds. Entities such as nodes and traffic live in arrays—extend their `userData` objects for new mechanics. Keep energy/score logic centralized in `updateGameState` so HUD values stay in sync.
+The camera is fixed-angle but user-controlled: arrow keys pan the view, Q/E adjusts altitude. Modify `cameraState` and `handleCameraPan` if you need different bounds or speeds. Collectible nodes live in arrays—extend their `userData` objects for new mechanics (power boosts, decay timers). Keep energy/score logic centralized in `updateGameState` so HUD values stay in sync.

@@ -11,13 +11,13 @@ scene.background = new THREE.Color(0x04070f);
 scene.fog = new THREE.Fog(0x04070f, 45, 140);
 
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 300);
-camera.position.set(0, 18, 32);
+camera.position.set(-6, 12, 30);
 scene.add(camera);
 
 const cameraState = {
-    offset: new THREE.Vector3(0, 18, 32),
+    offset: new THREE.Vector3(-6, 12, 30),
     manual: new THREE.Vector3(),
-    limits: { x: 24, z: 24, yMin: 10, yMax: 32 },
+    limits: { x: 18, z: 18, yMin: 8, yMax: 24 },
 };
 
 const cameraInput = { forward: false, backward: false, left: false, right: false, up: false, down: false };
@@ -44,8 +44,8 @@ scene.add(grid);
 const district = new THREE.Group();
 scene.add(district);
 
-const blockSize = 7;
-const spacing = 6;
+const blockSize = 5;
+const spacing = 8;
 const color = new THREE.Color();
 for (let x = -blockSize; x <= blockSize; x += 1) {
     for (let z = -blockSize; z <= blockSize; z += 1) {
@@ -77,29 +77,6 @@ const playerShadow = new THREE.Mesh(shadowGeo, shadowMat);
 playerShadow.rotation.x = -Math.PI / 2;
 playerShadow.position.y = 0.01;
 scene.add(playerShadow);
-
-const cars = [];
-const carGeo = new THREE.BoxGeometry(1.4, 0.8, 3.2);
-function spawnCar() {
-    const carMat = new THREE.MeshStandardMaterial({
-        color: new THREE.Color().setHSL(THREE.MathUtils.randFloat(0, 1), 0.8, 0.5),
-        emissive: 0xff5caa,
-        emissiveIntensity: 0.4,
-        roughness: 0.4,
-    });
-    const car = new THREE.Mesh(carGeo, carMat);
-    car.position.set(THREE.MathUtils.randFloatSpread(60), 0.5, THREE.MathUtils.randFloatSpread(60));
-    car.userData = {
-        axis: Math.random() > 0.5 ? 'x' : 'z',
-        dir: Math.random() > 0.5 ? 1 : -1,
-        speed: THREE.MathUtils.randFloat(6, 12),
-    };
-    cars.push(car);
-    scene.add(car);
-}
-for (let i = 0; i < 14; i += 1) {
-    spawnCar();
-}
 
 const nodes = [];
 const nodeGeo = new THREE.SphereGeometry(0.75, 16, 16);
@@ -230,7 +207,7 @@ function resetGame() {
     state.active = true;
     player.position.set(0, 1.2, 0);
     cameraState.manual.set(0, 0, 0);
-    cameraState.offset.set(0, 18, 32);
+    cameraState.offset.set(-6, 12, 30);
     setStatus('Collect aqua nodes to keep the district online.');
     updateUI();
 }
@@ -282,25 +259,6 @@ function updateCamera(delta) {
     camera.lookAt(target);
 }
 
-function updateCars(delta) {
-    const limit = playArea + 10;
-    cars.forEach((car) => {
-        const dirSpeed = car.userData.speed * delta * car.userData.dir;
-        if (car.userData.axis === 'x') {
-            car.position.x += dirSpeed;
-            if (car.position.x > limit || car.position.x < -limit) {
-                car.userData.dir *= -1;
-            }
-        } else {
-            car.position.z += dirSpeed;
-            if (car.position.z > limit || car.position.z < -limit) {
-                car.userData.dir *= -1;
-            }
-        }
-        car.rotation.y += delta * 2;
-    });
-}
-
 let elapsed = 0;
 function updateNodes(delta) {
     elapsed += delta;
@@ -346,7 +304,6 @@ function animate() {
         updatePlayer(delta);
     }
     updateCamera(delta);
-    updateCars(delta);
     updateNodes(delta);
     updateGameState(delta);
 
