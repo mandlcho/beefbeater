@@ -7,61 +7,37 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 container.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xbfe8ff);
-scene.fog = new THREE.Fog(0xbfe8ff, 60, 220);
+scene.background = new THREE.Color(0x04070f);
+scene.fog = new THREE.Fog(0x04070f, 45, 140);
 
-const frustumSize = 70;
-function createOrthographicCamera() {
-    const aspect = window.innerWidth / window.innerHeight;
-    return new THREE.OrthographicCamera(
-        (-frustumSize * aspect) / 2,
-        (frustumSize * aspect) / 2,
-        frustumSize / 2,
-        -frustumSize / 2,
-        0.1,
-        400
-    );
-}
-
-const camera = createOrthographicCamera();
-camera.position.set(-25, 40, 25);
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 300);
+camera.position.set(-6, 12, 30);
 scene.add(camera);
-updateCameraFrustum();
-
-function updateCameraFrustum() {
-    const aspect = window.innerWidth / window.innerHeight;
-    camera.left = (-frustumSize * aspect) / 2;
-    camera.right = (frustumSize * aspect) / 2;
-    camera.top = frustumSize / 2;
-    camera.bottom = -frustumSize / 2;
-    camera.updateProjectionMatrix();
-}
 
 const cameraState = {
-    offset: new THREE.Vector3(-25, 40, 25),
+    offset: new THREE.Vector3(-6, 12, 30),
     manual: new THREE.Vector3(),
-    limits: { x: 24, z: 24, yMin: 18, yMax: 60 },
+    limits: { x: 18, z: 18, yMin: 8, yMax: 24 },
 };
 
 const cameraInput = { forward: false, backward: false, left: false, right: false, scrollDelta: 0 };
 
-const hemi = new THREE.HemisphereLight(0xeef8ff, 0x315227, 1.15);
-const sun = new THREE.DirectionalLight(0xffffff, 1.45);
-sun.position.set(-30, 60, 20);
-sun.castShadow = false;
-const rimGlow = new THREE.PointLight(0xffdfb0, 6, 100);
-rimGlow.position.set(18, 18, -12);
-const ambient = new THREE.AmbientLight(0xffffff, 0.25);
-scene.add(hemi, sun, rimGlow, ambient);
+const hemi = new THREE.HemisphereLight(0xa1b9ff, 0x05070d, 0.8);
+const dir = new THREE.DirectionalLight(0xffc7a4, 1.2);
+dir.position.set(25, 40, 10);
+dir.castShadow = false;
+const glow = new THREE.PointLight(0xff5caa, 8, 80);
+glow.position.set(-10, 12, -6);
+scene.add(hemi, dir, glow);
 
 const groundGeo = new THREE.PlaneGeometry(160, 160);
-const groundMat = new THREE.MeshStandardMaterial({ color: 0x29532d, roughness: 0.95, metalness: 0.04 });
+const groundMat = new THREE.MeshStandardMaterial({ color: 0x0f2b12, roughness: 0.9, metalness: 0.05 });
 const ground = new THREE.Mesh(groundGeo, groundMat);
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-const pastureColors = [0x3f8c4c, 0x55a35d, 0x6cbf71, 0x8fd48a, 0x8c6239, 0xa77952];
+const pastureColors = [0x1d5c2f, 0x236d38, 0x2f7f46, 0x3a8f52];
 function createPastures() {
     const group = new THREE.Group();
     for (let i = 0; i < 14; i += 1) {
@@ -76,22 +52,8 @@ function createPastures() {
         const patch = new THREE.Mesh(geo, mat);
         patch.rotation.x = -Math.PI / 2;
         patch.position.set(THREE.MathUtils.randFloatSpread(80), 0.05, THREE.MathUtils.randFloatSpread(80));
-        patch.rotation.z = THREE.MathUtils.degToRad(THREE.MathUtils.randFloat(-12, 12));
         patch.receiveShadow = true;
         group.add(patch);
-    }
-    for (let j = 0; j < 10; j += 1) {
-        const soilGeo = new THREE.PlaneGeometry(THREE.MathUtils.randFloat(4, 9), THREE.MathUtils.randFloat(4, 9));
-        const soilMat = new THREE.MeshStandardMaterial({
-            color: 0xb58a5a,
-            roughness: 0.9,
-            metalness: 0.03,
-        });
-        const soil = new THREE.Mesh(soilGeo, soilMat);
-        soil.rotation.x = -Math.PI / 2;
-        soil.position.set(THREE.MathUtils.randFloatSpread(70), 0.04, THREE.MathUtils.randFloatSpread(70));
-        soil.receiveShadow = true;
-        group.add(soil);
     }
     scene.add(group);
 }
@@ -274,7 +236,7 @@ function updatePlayer(delta) {
 }
 
 function handleCameraPan(delta) {
-    const panSpeed = 18;
+    const panSpeed = 20;
     if (cameraInput.forward) cameraState.manual.z -= panSpeed * delta;
     if (cameraInput.backward) cameraState.manual.z += panSpeed * delta;
     if (cameraInput.left) cameraState.manual.x -= panSpeed * delta;
@@ -284,7 +246,7 @@ function handleCameraPan(delta) {
     cameraState.manual.z = THREE.MathUtils.clamp(cameraState.manual.z, -cameraState.limits.z, cameraState.limits.z);
 
     if (cameraInput.scrollDelta !== 0) {
-        cameraState.offset.y -= cameraInput.scrollDelta * 0.02;
+        cameraState.offset.y += cameraInput.scrollDelta * 0.01;
         cameraInput.scrollDelta = 0;
     }
     cameraState.offset.y = THREE.MathUtils.clamp(cameraState.offset.y, cameraState.limits.yMin, cameraState.limits.yMax);
@@ -334,9 +296,11 @@ function animate() {
 
 window.addEventListener('resize', () => {
     const { innerWidth, innerHeight } = window;
-    updateCameraFrustum();
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
     renderer.setSize(innerWidth, innerHeight);
 });
 
 resetGame();
 animate();
+
