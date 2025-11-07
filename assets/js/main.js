@@ -31,45 +31,70 @@ glow.position.set(-10, 12, -6);
 scene.add(hemi, dir, glow);
 
 const groundGeo = new THREE.PlaneGeometry(160, 160);
-const groundMat = new THREE.MeshStandardMaterial({ color: 0x050912, roughness: 0.7, metalness: 0.1 });
+const groundMat = new THREE.MeshStandardMaterial({ color: 0x0f2b12, roughness: 0.9, metalness: 0.05 });
 const ground = new THREE.Mesh(groundGeo, groundMat);
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-const grid = new THREE.GridHelper(160, 40, 0x1b2c49, 0x0a1424);
-grid.position.y = 0.02;
-scene.add(grid);
-
-const district = new THREE.Group();
-scene.add(district);
-
-const blockSize = 5;
-const spacing = 8;
-const color = new THREE.Color();
-for (let x = -blockSize; x <= blockSize; x += 1) {
-    for (let z = -blockSize; z <= blockSize; z += 1) {
-        if (Math.abs(x) < 2 && Math.abs(z) < 2) continue;
-        const height = THREE.MathUtils.randFloat(1.5, 12);
-        const geo = new THREE.BoxGeometry(3.5, height, 3.5);
-        color.setHSL(THREE.MathUtils.randFloat(0.55, 0.68), 0.4, THREE.MathUtils.randFloat(0.25, 0.42));
+const pastureColors = [0x1d5c2f, 0x236d38, 0x2f7f46, 0x3a8f52];
+function createPastures() {
+    const group = new THREE.Group();
+    for (let i = 0; i < 14; i += 1) {
+        const width = THREE.MathUtils.randFloat(6, 14);
+        const height = THREE.MathUtils.randFloat(6, 16);
+        const geo = new THREE.PlaneGeometry(width, height);
         const mat = new THREE.MeshStandardMaterial({
-            color: color.clone(),
-            emissive: color.clone().multiplyScalar(0.18),
-            roughness: 0.6,
-            metalness: 0.2,
+            color: pastureColors[Math.floor(Math.random() * pastureColors.length)],
+            roughness: 0.95,
+            metalness: 0.02,
         });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.set(x * spacing, height / 2, z * spacing);
-        district.add(mesh);
+        const patch = new THREE.Mesh(geo, mat);
+        patch.rotation.x = -Math.PI / 2;
+        patch.position.set(THREE.MathUtils.randFloatSpread(80), 0.05, THREE.MathUtils.randFloatSpread(80));
+        patch.receiveShadow = true;
+        group.add(patch);
     }
+    scene.add(group);
 }
+
+function createTrees() {
+    const forest = new THREE.Group();
+    for (let i = 0; i < 60; i += 1) {
+        const trunkGeo = new THREE.CylinderGeometry(0.15, 0.2, 1.6, 8);
+        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5b3a1a, roughness: 0.9 });
+        const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+
+        const crownGeo = new THREE.ConeGeometry(1.1, 2.4, 12);
+        const crownMat = new THREE.MeshStandardMaterial({ color: 0x2f8f4a, roughness: 0.4 });
+        const crown = new THREE.Mesh(crownGeo, crownMat);
+        crown.position.y = 1.4;
+
+        const tree = new THREE.Group();
+        tree.add(trunk);
+        tree.add(crown);
+        tree.position.set(THREE.MathUtils.randFloatSpread(70), 0.8, THREE.MathUtils.randFloatSpread(70));
+        tree.rotation.y = THREE.MathUtils.randFloat(0, Math.PI * 2);
+        forest.add(tree);
+    }
+    scene.add(forest);
+}
+
+createPastures();
+createTrees();
 
 const playerGeo = new THREE.CapsuleGeometry(0.6, 1.4, 8, 16);
 const playerMat = new THREE.MeshStandardMaterial({ color: 0xfdf5a6, emissive: 0xffd166, emissiveIntensity: 0.8, roughness: 0.4 });
 const player = new THREE.Mesh(playerGeo, playerMat);
 player.position.set(0, 1.2, 0);
 scene.add(player);
+
+const arrowGeo = new THREE.ConeGeometry(0.35, 1.4, 16);
+const arrowMat = new THREE.MeshBasicMaterial({ color: 0xfff1a1 });
+const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+arrow.position.set(0, 1.9, 0.3);
+arrow.rotation.x = Math.PI / 2;
+player.add(arrow);
 
 const shadowGeo = new THREE.CircleGeometry(1.2, 32);
 const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 });
