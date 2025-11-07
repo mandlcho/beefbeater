@@ -20,7 +20,7 @@ const cameraState = {
     limits: { x: 18, z: 18, yMin: 8, yMax: 24 },
 };
 
-const cameraInput = { forward: false, backward: false, left: false, right: false, up: false, down: false };
+const cameraInput = { forward: false, backward: false, left: false, right: false, scrollDelta: 0 };
 
 const hemi = new THREE.HemisphereLight(0xa1b9ff, 0x05070d, 0.8);
 const dir = new THREE.DirectionalLight(0xffc7a4, 1.2);
@@ -135,12 +135,6 @@ function handleKeyChange(key, value) {
         case 'arrowright':
             cameraInput.right = value;
             break;
-        case 'q':
-            cameraInput.up = value;
-            break;
-        case 'e':
-            cameraInput.down = value;
-            break;
         case 'r':
             if (value) resetGame();
             break;
@@ -159,6 +153,15 @@ window.addEventListener('keyup', (event) => {
     const handled = handleKeyChange(event.key.toLowerCase(), false);
     if (handled) event.preventDefault();
 });
+
+window.addEventListener(
+    'wheel',
+    (event) => {
+        event.preventDefault();
+        cameraInput.scrollDelta += event.deltaY;
+    },
+    { passive: false }
+);
 
 const scoreEl = document.querySelector('[data-score]');
 const bestEl = document.querySelector('[data-best]');
@@ -217,9 +220,10 @@ function handleCameraPan(delta) {
     cameraState.manual.x = THREE.MathUtils.clamp(cameraState.manual.x, -cameraState.limits.x, cameraState.limits.x);
     cameraState.manual.z = THREE.MathUtils.clamp(cameraState.manual.z, -cameraState.limits.z, cameraState.limits.z);
 
-    const verticalSpeed = 14;
-    if (cameraInput.up) cameraState.offset.y += verticalSpeed * delta;
-    if (cameraInput.down) cameraState.offset.y -= verticalSpeed * delta;
+    if (cameraInput.scrollDelta !== 0) {
+        cameraState.offset.y += cameraInput.scrollDelta * 0.01;
+        cameraInput.scrollDelta = 0;
+    }
     cameraState.offset.y = THREE.MathUtils.clamp(cameraState.offset.y, cameraState.limits.yMin, cameraState.limits.yMax);
 }
 
