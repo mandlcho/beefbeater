@@ -1,113 +1,72 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BeefBeater � Data-driven insights for protein logistics</title>
+    <title>BeefBeater · Flux Runner</title>
     <link rel="stylesheet" href="assets/css/styles.css" />
 </head>
 <body>
-    <header class="hero" id="top">
-        <div class="hero__content">
-            <p class="eyebrow">BeefBeater</p>
-            <h1>Operational intelligence for every cut of work.</h1>
-            <p class="lede">A lightweight platform for planning, forecasting, and sharing insights across protein supply teams. Lean in, spin up, and ship confidently.</p>
-            <div class="cta">
-                <a class="btn primary" href="#playbook">View the playbook</a>
+    <div class="game-wrapper">
+        <div class="canvas-shell" aria-label="Flux Runner simulation">
+            <div id="game"></div>
+            <div class="hud" aria-live="polite">
+                <div class="hud__brand">
+                    <span class="badge">BeefBeater</span>
+                    <strong>Flux Runner</strong>
+                </div>
+                <div class="hud__stats">
+                    <div class="stat">
+                        <span class="label">Score</span>
+                        <span class="value" data-score>0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="label">Combo</span>
+                        <span class="value" data-combo>0x</span>
+                    </div>
+                    <div class="stat">
+                        <span class="label">Integrity</span>
+                        <span class="value" data-health>3</span>
+                    </div>
+                    <div class="stat">
+                        <span class="label">Wave</span>
+                        <span class="value" data-wave>1</span>
+                    </div>
+                </div>
+            </div>
+            <div id="status-banner" class="status-banner" aria-live="assertive">
+                Tap A / D or ← / → to align the harvester. Collect payloads, dodge contaminants.
+            </div>
+        </div>
+
+        <aside class="control-panel">
+            <section>
+                <h2>Mission Brief</h2>
+                <p>Guide the spectral harvester through the cold-chain lane. Neon crates carry premium orders, magenta shards are contaminants. Keep throughput high without damaging integrity.</p>
+                <ul class="controls">
+                    <li><span>Move</span><strong>A / D or ← / →</strong></li>
+                    <li><span>Vertical trim</span><strong>W / S or ↑ / ↓</strong></li>
+                    <li><span>Reset run</span><strong>R</strong></li>
+                </ul>
+            </section>
+            <section>
+                <h3>Run Insights</h3>
+                <p>Collect streaks to build combo multipliers. Missing a payload breaks combo; colliding with contaminants drains integrity. Survive progressively faster waves to keep the network stable.</p>
+                <button id="reset-button" class="btn primary" type="button">Reset Simulation</button>
                 <a class="btn ghost" href="https://github.com/mandlcho/beefbeater" target="_blank" rel="noreferrer">View source</a>
-            </div>
-        </div>
-        <div class="hero__card" aria-label="Key metrics snapshot">
-            <div class="card__row">
-                <span class="label">Filled orders</span>
-                <span class="value">98.6%</span>
-            </div>
-            <div class="card__row">
-                <span class="label">Cycle time</span>
-                <span class="value">4.2 hrs</span>
-            </div>
-            <div class="card__row">
-                <span class="label">Waste reduction</span>
-                <span class="value">-37%</span>
-            </div>
-        </div>
-    </header>
-
-    <main>
-        <section class="section" id="playbook">
-            <div class="section__header">
-                <p class="eyebrow">Implementation Playbook</p>
-                <h2>Launch a reliable ops cockpit in three steps.</h2>
-            </div>
-            <div class="grid three">
-                <article class="card">
-                    <h3>1. Model your flows</h3>
-                    <p>Define plants, carriers, and SKUs in `src/data/`. Use JSON or YAML�just keep relations normalized.</p>
-                </article>
-                <article class="card">
-                    <h3>2. Wire automations</h3>
-                    <p>Hook your ETL scripts into `scripts/` so nightly refreshes deploy with the site.</p>
-                </article>
-                <article class="card">
-                    <h3>3. Share insights</h3>
-                    <p>Publish dashboards via GitHub Pages so analysts, schedulers, and execs view the same source of truth.</p>
-                </article>
-            </div>
-        </section>
-
-        <section class="section" id="features">
-            <div class="section__header">
-                <p class="eyebrow">Feature Highlights</p>
-                <h2>Clear, actionable data for every stakeholder.</h2>
-            </div>
-            <div class="grid two">
-                <article class="feature">
-                    <h3>Scenario Planning</h3>
-                    <p>Simulate demand shifts with deterministic models and export runbooks for plant leads.</p>
-                </article>
-                <article class="feature">
-                    <h3>Quality Signals</h3>
-                    <p>Track cold-chain anomalies with automated alerts that post to Slack or Teams.</p>
-                </article>
-                <article class="feature">
-                    <h3>API-first</h3>
-                    <p>Everything fetched via RESTful endpoints�bring your own data lake or warehouse.</p>
-                </article>
-                <article class="feature">
-                    <h3>Compliance Ready</h3>
-                    <p>Built-in audit trail with immutable manifests for USDA and retailer reviews.</p>
-                </article>
-            </div>
-        </section>
-
-        <section class="section section--accent" id="contribute">
-            <div class="section__header">
-                <p class="eyebrow">Contribute</p>
-                <h2>Ideas, fixes, and automation welcome.</h2>
-            </div>
-            <div class="grid two">
-                <div>
-                    <p>Fork the repo, branch from `main`, and follow the guidelines in <a href="AGENTS.md">AGENTS.md</a>. Lint, test, then open a pull request with screenshots or terminal output.</p>
-                    <ul class="checklist">
-                        <li>Document any new environment variables in `.env.example`.</li>
-                        <li>Add fixtures for new data shapers under `tests/fixtures/`.</li>
-                        <li>Link an issue so context remains searchable.</li>
-                    </ul>
-                </div>
-                <div class="panel">
-                    <h3>Need inspiration?</h3>
-                    <p>Check open issues labeled <code>help wanted</code> or submit a proposal in `docs/roadmap.md`.</p>
-                    <a class="btn primary" href="https://github.com/mandlcho/beefbeater/issues" target="_blank" rel="noreferrer">View issues</a>
-                </div>
-            </div>
-        </section>
-    </main>
+            </section>
+            <section>
+                <h3>Telemetry Log</h3>
+                <div class="log" id="event-log" aria-live="polite"></div>
+            </section>
+        </aside>
+    </div>
 
     <footer class="footer">
-        <p>Made with ? in the BeefBeater labs. <a href="#top">Back to top</a></p>
-        <p>Ready to deploy on GitHub Pages via <code>main</code> ? Settings ? Pages.</p>
+        <p>Built with Three.js. Deploys automatically via GitHub Pages Actions workflow.</p>
+        <p><a href="AGENTS.md">Read the contributor handbook</a></p>
     </footer>
 
-    <script src="assets/js/main.js" defer></script>
+    <script type="module" src="assets/js/main.js"></script>
 </body>
 </html>

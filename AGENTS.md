@@ -1,40 +1,37 @@
-# Repository Guidelines
+﻿# Repository Guidelines
 
 ## Project Structure & Module Organization
-GitHub Pages serves directly from `main`, so keep the structure flat and predictable:
 ```
 beefbeater/
-|-- index.html      # landing page rendered by GitHub Pages
+|-- index.html            # Flux Runner entry point loaded by GitHub Pages
 |-- assets/
-|   |-- css/        # global styles (`styles.css`)
-|   |-- js/         # progressive enhancement scripts (`main.js`)
-|   `-- img/        # optimized media (SVG/PNG, under 200KB each)
-`-- docs/           # contributor notes, roadmap, security briefings
+|   |-- css/styles.css    # HUD + control panel styles and design tokens
+|   `-- js/main.js        # Three.js scene, game loop, and UI bindings
+|-- .github/workflows/    # Pages deployment pipeline
+`-- docs/                 # design notes, roadmap, security briefs (add as needed)
 ```
-Stick to semantic HTML sections in `index.html` so screen readers map content correctly. Group reusable UI in partials before inlining to the top-level page.
+`assets/js/main.js` imports Three.js from a CDN. Keep modules self-contained and prefer semantic HTML in `index.html` so overlays remain accessible to screen readers.
 
 ## Build, Test, and Development Commands
-- `npm install` -- install tooling such as Prettier or eslint configs if you add Node-based automation.
-- `npm run format` -- optional script that runs `prettier --write \"**/*.{html,css,js,md}\"`; add when formatting automation lands.
-- `npx serve .` -- lightweight static preview (or use VS Code Live Server) to test pages before pushing.
-- `npx lighthouse http://localhost:3000` -- spot-check accessibility and performance budgets; keep performance ≥90.
+- `npm install` – pull in optional dev tooling (Prettier, stylelint, html-validate) when you add a `package.json`.
+- `npx serve .` – run a static preview before pushing; Lighthouse prefers 60 FPS during gameplay.
+- `npx html-validate index.html` – catch markup regressions, especially ARIA labels.
+- `npx stylelint "assets/css/**/*.css"` – ensure HUD styles stay consistent.
 
 ## Coding Style & Naming Conventions
-Use HTML5 + CSS custom properties; prefer BEM-inspired class names (e.g., `.hero__card`, `.section--accent`). Indent with 2 spaces in HTML/CSS/JS and single quotes in scripts. Centralize colors, spacing, and typography tokens in `:root` so palette swaps stay simple. JS modules should be self-contained, exporting functions from `assets/js/` and attaching behavior with `data-*` hooks instead of hard-coded IDs.
+Use 2-space indentation and single quotes inside scripts. Class names follow a BEM-ish style (`.hud__stats`, `.status-banner`). Keep color, spacing, and typographic tokens in the `:root` block. Gameplay helpers (`spawnCrate`, `logEvent`, `escalateDifficulty`) should live in dedicated functions; add new HUD stats via `[data-*]` hooks rather than scattered IDs.
 
 ## Testing Guidelines
-For a static site, prioritize smoke checks:
-- Validate HTML via `npx html-validate index.html`.
-- Run `npx stylelint \"assets/css/**/*.css\"` if styles grow beyond a single file.
-- Use Playwright or Cypress only if interactive flows emerge; keep tests in `tests/e2e/` and reference them from `docs/testing.md`.
+Manual smoke tests: capture + avoid collisions, ensure HUD counters update, and resize the window to verify responsive behavior. When automation is needed, use Playwright to assert that `[data-score]` increments after simulated collisions and that the reset button clears the log. Store browser tests under `tests/e2e/` and document scenarios in `docs/testing.md`.
 
 ## Commit & Pull Request Guidelines
-Follow Conventional Commits (examples: `feat: redesign hero metrics`, `chore: compress hero background`). Rebase before pushing so `main` stays linear. Each PR must include: TL;DR summary, before/after screenshot or Lighthouse snippet, list of commands executed, and any open questions. Tag reviewers with domain context (design, content, engineering) when appropriate.
+Follow Conventional Commits (e.g., `feat: add energy surge power-ups`, `fix: clamp camera roll`). Every PR needs a short summary, gameplay clip or GIF, and the commands you ran. Rebase before pushing; avoid merge commits in feature branches.
 
 ## Deployment Workflow
-- GitHub Actions deploys from `.github/workflows/pages.yml`. Every push to `main` (or manual `workflow_dispatch`) uploads the repository root as the Pages artifact and publishes it to the `github-pages` environment.
-- Keep `index.html` and the `assets/` directory in the repository root or update the workflow `path` if you restructure.
-- After merging, monitor the “pages build and deployment” workflow under Actions; the job log shows the published URL in the `Deploy to GitHub Pages` step output.
+`.github/workflows/pages.yml` builds and deploys on every push to `main` or manual dispatch. Keep the playable experience rooted at `/` so the workflow’s `path: .` remains valid. After a merge, confirm the “pages build and deployment” Action finishes green—the log prints the public URL.
+
+## Three.js Gameplay Notes
+Flux Runner targets Three.js `0.160.x`. If you upgrade, snapshot the CDN version in the import string and test combo logic (`handleCollision`) plus wave scaling. Entities live in the `crates` array; extend their `userData` for new mechanics (boosts, slow fields) instead of mutating global state. Reuse `logEvent` for any new narrative beats so the telemetry panel stays chronological.
 
 ## Security & Configuration Tips
-GitHub Pages is public—never commit secrets. If a workflow eventually requires API keys, keep them in repository secrets and document usage in `docs/security.md`. Optimize images offline and strip EXIF data before committing. Use dependabot alerts to stay current on any npm tooling you add for formatting or testing.
+Never store secrets in the repo—GitHub Pages is public. Optimize textures or audio offline, strip EXIF data, and keep third-party libraries pinned. If you introduce build tooling, document `.env` needs in `docs/security.md` and rely on repository secrets for API keys.
