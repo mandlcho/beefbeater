@@ -7,8 +7,8 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 container.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x04070f);
-scene.fog = new THREE.Fog(0x04070f, 45, 140);
+scene.background = new THREE.Color(0xbfe8ff);
+scene.fog = new THREE.Fog(0xbfe8ff, 60, 220);
 
 const frustumSize = 70;
 function createOrthographicCamera() {
@@ -45,22 +45,23 @@ const cameraState = {
 
 const cameraInput = { forward: false, backward: false, left: false, right: false, scrollDelta: 0 };
 
-const hemi = new THREE.HemisphereLight(0xa1b9ff, 0x05070d, 0.8);
-const dir = new THREE.DirectionalLight(0xffc7a4, 1.2);
-dir.position.set(25, 40, 10);
-dir.castShadow = false;
-const glow = new THREE.PointLight(0xff5caa, 8, 80);
-glow.position.set(-10, 12, -6);
-scene.add(hemi, dir, glow);
+const hemi = new THREE.HemisphereLight(0xeef8ff, 0x315227, 1.15);
+const sun = new THREE.DirectionalLight(0xffffff, 1.45);
+sun.position.set(-30, 60, 20);
+sun.castShadow = false;
+const rimGlow = new THREE.PointLight(0xffdfb0, 6, 100);
+rimGlow.position.set(18, 18, -12);
+const ambient = new THREE.AmbientLight(0xffffff, 0.25);
+scene.add(hemi, sun, rimGlow, ambient);
 
 const groundGeo = new THREE.PlaneGeometry(160, 160);
-const groundMat = new THREE.MeshStandardMaterial({ color: 0x0f2b12, roughness: 0.9, metalness: 0.05 });
+const groundMat = new THREE.MeshStandardMaterial({ color: 0x29532d, roughness: 0.95, metalness: 0.04 });
 const ground = new THREE.Mesh(groundGeo, groundMat);
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-const pastureColors = [0x1d5c2f, 0x236d38, 0x2f7f46, 0x3a8f52];
+const pastureColors = [0x3f8c4c, 0x55a35d, 0x6cbf71, 0x8fd48a, 0x8c6239, 0xa77952];
 function createPastures() {
     const group = new THREE.Group();
     for (let i = 0; i < 14; i += 1) {
@@ -75,8 +76,22 @@ function createPastures() {
         const patch = new THREE.Mesh(geo, mat);
         patch.rotation.x = -Math.PI / 2;
         patch.position.set(THREE.MathUtils.randFloatSpread(80), 0.05, THREE.MathUtils.randFloatSpread(80));
+        patch.rotation.z = THREE.MathUtils.degToRad(THREE.MathUtils.randFloat(-12, 12));
         patch.receiveShadow = true;
         group.add(patch);
+    }
+    for (let j = 0; j < 10; j += 1) {
+        const soilGeo = new THREE.PlaneGeometry(THREE.MathUtils.randFloat(4, 9), THREE.MathUtils.randFloat(4, 9));
+        const soilMat = new THREE.MeshStandardMaterial({
+            color: 0xb58a5a,
+            roughness: 0.9,
+            metalness: 0.03,
+        });
+        const soil = new THREE.Mesh(soilGeo, soilMat);
+        soil.rotation.x = -Math.PI / 2;
+        soil.position.set(THREE.MathUtils.randFloatSpread(70), 0.04, THREE.MathUtils.randFloatSpread(70));
+        soil.receiveShadow = true;
+        group.add(soil);
     }
     scene.add(group);
 }
