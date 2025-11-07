@@ -10,14 +10,37 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x04070f);
 scene.fog = new THREE.Fog(0x04070f, 45, 140);
 
-const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 300);
-camera.position.set(-6, 12, 30);
+const frustumSize = 70;
+function createOrthographicCamera() {
+    const aspect = window.innerWidth / window.innerHeight;
+    return new THREE.OrthographicCamera(
+        (-frustumSize * aspect) / 2,
+        (frustumSize * aspect) / 2,
+        frustumSize / 2,
+        -frustumSize / 2,
+        0.1,
+        400
+    );
+}
+
+const camera = createOrthographicCamera();
+camera.position.set(-25, 40, 25);
 scene.add(camera);
+updateCameraFrustum();
+
+function updateCameraFrustum() {
+    const aspect = window.innerWidth / window.innerHeight;
+    camera.left = (-frustumSize * aspect) / 2;
+    camera.right = (frustumSize * aspect) / 2;
+    camera.top = frustumSize / 2;
+    camera.bottom = -frustumSize / 2;
+    camera.updateProjectionMatrix();
+}
 
 const cameraState = {
-    offset: new THREE.Vector3(-6, 12, 30),
+    offset: new THREE.Vector3(-25, 40, 25),
     manual: new THREE.Vector3(),
-    limits: { x: 18, z: 18, yMin: 8, yMax: 24 },
+    limits: { x: 24, z: 24, yMin: 18, yMax: 60 },
 };
 
 const cameraInput = { forward: false, backward: false, left: false, right: false, scrollDelta: 0 };
@@ -236,7 +259,7 @@ function updatePlayer(delta) {
 }
 
 function handleCameraPan(delta) {
-    const panSpeed = 20;
+    const panSpeed = 18;
     if (cameraInput.forward) cameraState.manual.z -= panSpeed * delta;
     if (cameraInput.backward) cameraState.manual.z += panSpeed * delta;
     if (cameraInput.left) cameraState.manual.x -= panSpeed * delta;
@@ -246,7 +269,7 @@ function handleCameraPan(delta) {
     cameraState.manual.z = THREE.MathUtils.clamp(cameraState.manual.z, -cameraState.limits.z, cameraState.limits.z);
 
     if (cameraInput.scrollDelta !== 0) {
-        cameraState.offset.y += cameraInput.scrollDelta * 0.01;
+        cameraState.offset.y -= cameraInput.scrollDelta * 0.02;
         cameraInput.scrollDelta = 0;
     }
     cameraState.offset.y = THREE.MathUtils.clamp(cameraState.offset.y, cameraState.limits.yMin, cameraState.limits.yMax);
@@ -296,8 +319,7 @@ function animate() {
 
 window.addEventListener('resize', () => {
     const { innerWidth, innerHeight } = window;
-    camera.aspect = innerWidth / innerHeight;
-    camera.updateProjectionMatrix();
+    updateCameraFrustum();
     renderer.setSize(innerWidth, innerHeight);
 });
 
