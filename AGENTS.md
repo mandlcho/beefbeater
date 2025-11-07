@@ -31,5 +31,10 @@ For a static site, prioritize smoke checks:
 ## Commit & Pull Request Guidelines
 Follow Conventional Commits (examples: `feat: redesign hero metrics`, `chore: compress hero background`). Rebase before pushing so `main` stays linear. Each PR must include: TL;DR summary, before/after screenshot or Lighthouse snippet, list of commands executed, and any open questions. Tag reviewers with domain context (design, content, engineering) when appropriate.
 
+## Deployment Workflow
+- GitHub Actions deploys from `.github/workflows/pages.yml`. Every push to `main` (or manual `workflow_dispatch`) uploads the repository root as the Pages artifact and publishes it to the `github-pages` environment.
+- Keep `index.html` and the `assets/` directory in the repository root or update the workflow `path` if you restructure.
+- After merging, monitor the “pages build and deployment” workflow under Actions; the job log shows the published URL in the `Deploy to GitHub Pages` step output.
+
 ## Security & Configuration Tips
 GitHub Pages is public—never commit secrets. If a workflow eventually requires API keys, keep them in repository secrets and document usage in `docs/security.md`. Optimize images offline and strip EXIF data before committing. Use dependabot alerts to stay current on any npm tooling you add for formatting or testing.
