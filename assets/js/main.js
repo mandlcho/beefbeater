@@ -6,42 +6,6 @@ renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 container.appendChild(renderer.domElement);
 
-const SETTINGS_STORAGE_KEY = 'beefbeaterCameraSettings';
-const defaultCameraSettings = {
-    offsetX: -25,
-    offsetY: 40,
-    offsetZ: 25,
-    panLimitX: 24,
-    panLimitZ: 24,
-    minHeight: 18,
-    maxHeight: 60,
-    panSpeed: 18,
-    frustum: 70,
-};
-
-function loadCameraSettings() {
-    try {
-        const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
-        if (!stored) return { ...defaultCameraSettings };
-        const parsed = JSON.parse(stored);
-        return { ...defaultCameraSettings, ...parsed };
-    } catch (error) {
-        console.warn('Unable to load camera settings; using defaults.', error);
-        return { ...defaultCameraSettings };
-    }
-}
-
-function persistCameraSettings(settings) {
-    try {
-        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-    } catch (error) {
-        console.warn('Unable to save camera settings.', error);
-    }
-}
-
-let cameraSettings = loadCameraSettings();
-let frustumSize = cameraSettings.frustum;
-
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xbfe8ff);
 scene.fog = new THREE.Fog(0xbfe8ff, 60, 220);
@@ -73,28 +37,10 @@ function updateCameraFrustum() {
     camera.updateProjectionMatrix();
 }
 
-function applyCameraSettings() {
-    cameraState.offset.set(cameraSettings.offsetX, cameraSettings.offsetY, cameraSettings.offsetZ);
-    cameraState.limits.x = cameraSettings.panLimitX;
-    cameraState.limits.z = cameraSettings.panLimitZ;
-    cameraState.limits.yMin = cameraSettings.minHeight;
-    cameraState.limits.yMax = cameraSettings.maxHeight;
-    cameraState.manual.x = THREE.MathUtils.clamp(cameraState.manual.x, -cameraState.limits.x, cameraState.limits.x);
-    cameraState.manual.z = THREE.MathUtils.clamp(cameraState.manual.z, -cameraState.limits.z, cameraState.limits.z);
-    frustumSize = cameraSettings.frustum;
-    updateCameraFrustum();
-}
-applyCameraSettings();
-
 const cameraState = {
-    offset: new THREE.Vector3(cameraSettings.offsetX, cameraSettings.offsetY, cameraSettings.offsetZ),
+    offset: new THREE.Vector3(-25, 40, 25),
     manual: new THREE.Vector3(),
-    limits: {
-        x: cameraSettings.panLimitX,
-        z: cameraSettings.panLimitZ,
-        yMin: cameraSettings.minHeight,
-        yMax: cameraSettings.maxHeight,
-    },
+    limits: { x: 24, z: 24, yMin: 18, yMax: 60 },
 };
 
 const cameraInput = { forward: false, backward: false, left: false, right: false, scrollDelta: 0 };
@@ -283,8 +229,6 @@ window.addEventListener(
 const scoreEl = document.querySelector('[data-score]');
 const bestEl = document.querySelector('[data-best]');
 const resetButton = document.getElementById('reset-button');
-const cameraForm = document.getElementById('camera-form');
-const saveSettingsButton = document.getElementById('save-settings');
 
 const state = {
     score: 0,
@@ -292,68 +236,6 @@ const state = {
 };
 
 resetButton.addEventListener('click', resetGame);
-
-function populateCameraForm() {
-    if (!cameraForm) return;
-    const mapping = {
-        offsetX: cameraSettings.offsetX,
-        offsetY: cameraSettings.offsetY,
-        offsetZ: cameraSettings.offsetZ,
-        panLimitX: cameraSettings.panLimitX,
-        panLimitZ: cameraSettings.panLimitZ,
-        minHeight: cameraSettings.minHeight,
-        maxHeight: cameraSettings.maxHeight,
-        panSpeed: cameraSettings.panSpeed,
-        frustum: cameraSettings.frustum,
-    };
-    Object.entries(mapping).forEach(([field, value]) => {
-        if (cameraForm.elements[field]) {
-            cameraForm.elements[field].value = value;
-        }
-    });
-}
-
-function toNumber(value, fallback) {
-    const parsed = parseFloat(value);
-    return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-let saveFeedbackTimeout;
-function handleSaveSettings() {
-    if (!cameraForm) return;
-    const formData = new FormData(cameraForm);
-    cameraSettings = {
-        offsetX: toNumber(formData.get('offsetX'), cameraSettings.offsetX),
-        offsetY: toNumber(formData.get('offsetY'), cameraSettings.offsetY),
-        offsetZ: toNumber(formData.get('offsetZ'), cameraSettings.offsetZ),
-        panLimitX: Math.abs(toNumber(formData.get('panLimitX'), cameraSettings.panLimitX)),
-        panLimitZ: Math.abs(toNumber(formData.get('panLimitZ'), cameraSettings.panLimitZ)),
-        minHeight: toNumber(formData.get('minHeight'), cameraSettings.minHeight),
-        maxHeight: toNumber(formData.get('maxHeight'), cameraSettings.maxHeight),
-        panSpeed: Math.max(0.1, toNumber(formData.get('panSpeed'), cameraSettings.panSpeed)),
-        frustum: Math.max(10, toNumber(formData.get('frustum'), cameraSettings.frustum)),
-    };
-    if (cameraSettings.minHeight > cameraSettings.maxHeight) {
-        cameraSettings.maxHeight = cameraSettings.minHeight + 1;
-    }
-    persistCameraSettings(cameraSettings);
-    applyCameraSettings();
-    if (saveSettingsButton) {
-        const originalText = saveSettingsButton.textContent;
-        saveSettingsButton.textContent = 'Saved!';
-        clearTimeout(saveFeedbackTimeout);
-        saveFeedbackTimeout = setTimeout(() => {
-            saveSettingsButton.textContent = originalText;
-        }, 1400);
-    }
-}
-
-if (cameraForm) {
-    populateCameraForm();
-}
-if (saveSettingsButton) {
-    saveSettingsButton.addEventListener('click', handleSaveSettings);
-}
 
 function updateUI() {
     scoreEl.textContent = Math.round(state.score);
@@ -364,7 +246,7 @@ function resetGame() {
     state.score = 0;
     player.position.set(0, 1.2, 0);
     cameraState.manual.set(0, 0, 0);
-    applyCameraSettings();
+    cameraState.offset.set(-6, 12, 30);
     updateUI();
 }
 
@@ -392,7 +274,7 @@ function updatePlayer(delta) {
 }
 
 function handleCameraPan(delta) {
-    const panSpeed = cameraSettings.panSpeed;
+    const panSpeed = 18;
     if (cameraInput.forward) cameraState.manual.z -= panSpeed * delta;
     if (cameraInput.backward) cameraState.manual.z += panSpeed * delta;
     if (cameraInput.left) cameraState.manual.x -= panSpeed * delta;
