@@ -8,13 +8,8 @@
 </head>
 <body>
     <div id="game" role="presentation" aria-hidden="true"></div>
-    <section class="overlay" aria-live="polite">
-        <header class="overlay__header">
-            <p class="eyebrow">BeefBeater</p>
-            <h1>Neon Surveyor</h1>
-            <p class="lede">Manual free-cam exploration of a luminous logistics district. Steer the scout, glide a diagonal-upwards camera when you need fresh sightlines, and stabilize data nodes before the grid winds down.</p>
-        </header>
-        <div class="stats">
+    <div class="hud-floating">
+        <div class="hud-floating__stats">
             <div class="stat">
                 <span>Score</span>
                 <strong data-score>0</strong>
@@ -23,38 +18,12 @@
                 <span>Best</span>
                 <strong data-best>0</strong>
             </div>
-            <div class="stat">
-                <span>Energy</span>
-                <strong data-energy>100%</strong>
-            </div>
-            <div class="stat">
-                <span>Time</span>
-                <strong data-time>00:00</strong>
-            </div>
         </div>
-        <div class="energy">
-            <span class="energy__label">Grid Stability</span>
-            <div class="energy__bar">
-                <div class="energy__fill" data-energy-fill style="width:100%"></div>
-            </div>
-        </div>
-        <p id="status-text" class="status-text">Collect aqua nodes to keep the district online. Use arrow keys or Q/E to nudge the diagonal camera when sightlines get busy.</p>
-        <div class="controls">
-            <h2>Controls</h2>
-            <ul>
-                <li><span>Move scout</span><strong>W A S D</strong></li>
-                <li><span>Boost</span><strong>Hold Shift</strong></li>
-                <li><span>Pan camera</span><strong>Arrow Keys</strong></li>
-                <li><span>Tilt camera</span><strong>Q / E</strong></li>
-                <li><span>Reset</span><strong>R or button</strong></li>
-            </ul>
-        </div>
-        <div class="actions">
+        <div class="hud-floating__actions">
             <button id="reset-button" class="btn primary" type="button">Reset Run</button>
-            <a class="btn ghost" href="AGENTS.md">Contributor Guide</a>
             <a class="btn ghost" href="https://github.com/mandlcho/beefbeater" target="_blank" rel="noreferrer">Source</a>
         </div>
-    </section>
+    </div>
 
     <script type="module" src="assets/js/main.js"></script>
 </body>

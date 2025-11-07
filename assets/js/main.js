@@ -162,53 +162,25 @@ window.addEventListener('keyup', (event) => {
 
 const scoreEl = document.querySelector('[data-score]');
 const bestEl = document.querySelector('[data-best]');
-const energyEl = document.querySelector('[data-energy]');
-const energyFill = document.querySelector('[data-energy-fill]');
-const timeEl = document.querySelector('[data-time]');
-const statusEl = document.getElementById('status-text');
 const resetButton = document.getElementById('reset-button');
 
 const state = {
     score: 0,
     best: 0,
-    energy: 100,
-    time: 0,
-    active: true,
 };
 
 resetButton.addEventListener('click', resetGame);
 
-function setStatus(message) {
-    statusEl.textContent = message;
-}
-
 function updateUI() {
     scoreEl.textContent = Math.round(state.score);
     bestEl.textContent = Math.round(state.best);
-    energyEl.textContent = `${Math.max(0, state.energy).toFixed(0)}%`;
-    energyFill.style.width = `${Math.max(0, Math.min(100, state.energy))}%`;
-    timeEl.textContent = formatTime(state.time);
-}
-
-function formatTime(totalSeconds) {
-    const minutes = Math.floor(totalSeconds / 60)
-        .toString()
-        .padStart(2, '0');
-    const seconds = Math.floor(totalSeconds % 60)
-        .toString()
-        .padStart(2, '0');
-    return `${minutes}:${seconds}`;
 }
 
 function resetGame() {
     state.score = 0;
-    state.energy = 100;
-    state.time = 0;
-    state.active = true;
     player.position.set(0, 1.2, 0);
     cameraState.manual.set(0, 0, 0);
     cameraState.offset.set(-6, 12, 30);
-    setStatus('Collect aqua nodes to keep the district online.');
     updateUI();
 }
 
@@ -267,7 +239,7 @@ function updateNodes(delta) {
         node.position.y = 1.2 + pulse * 0.5;
         const scale = 1 + Math.sin(elapsed * 3 + node.userData.offset) * 0.12;
         node.scale.setScalar(scale);
-        if (state.active && player.position.distanceTo(node.position) < 1.4) {
+        if (player.position.distanceTo(node.position) < 1.4) {
             collectNode(node);
         }
     });
@@ -275,24 +247,9 @@ function updateNodes(delta) {
 
 function collectNode(node) {
     state.score += 25;
-    state.energy = Math.min(100, state.energy + 18);
     state.best = Math.max(state.best, state.score);
-    setStatus('Node stabilized. Keep sweeping.');
     node.position.set(randomRange(-playArea, playArea), 1.4, randomRange(-playArea, playArea));
     node.userData.offset = Math.random() * Math.PI * 2;
-    updateUI();
-}
-
-function updateGameState(delta) {
-    if (!state.active) return;
-    state.energy -= delta * 6;
-    state.time += delta;
-    if (state.energy <= 0) {
-        state.energy = 0;
-        state.active = false;
-        state.best = Math.max(state.best, state.score);
-        setStatus('Energy depleted. Press reset to start another survey.');
-    }
     updateUI();
 }
 
@@ -300,12 +257,9 @@ const clock = new THREE.Clock();
 
 function animate() {
     const delta = clock.getDelta();
-    if (state.active) {
-        updatePlayer(delta);
-    }
+    updatePlayer(delta);
     updateCamera(delta);
     updateNodes(delta);
-    updateGameState(delta);
 
     renderer.render(scene, camera);
     requestAnimationFrame(animate);
