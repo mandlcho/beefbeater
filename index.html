@@ -8,6 +8,52 @@
 </head>
 <body>
     <div id="game" role="presentation" aria-hidden="true"></div>
+    <aside class="control-panel" aria-label="Camera settings panel">
+        <div class="control-panel__tabs">
+            <button class="control-panel__tab control-panel__tab--active" type="button">Camera Settings</button>
+        </div>
+        <form id="camera-form" class="control-panel__body">
+            <div class="form-grid">
+                <label class="field">
+                    <span>Offset X</span>
+                    <input type="number" name="offsetX" step="0.5" required />
+                </label>
+                <label class="field">
+                    <span>Offset Y</span>
+                    <input type="number" name="offsetY" step="0.5" required />
+                </label>
+                <label class="field">
+                    <span>Offset Z</span>
+                    <input type="number" name="offsetZ" step="0.5" required />
+                </label>
+                <label class="field">
+                    <span>Pan Limit X</span>
+                    <input type="number" name="panLimitX" step="0.5" min="0" required />
+                </label>
+                <label class="field">
+                    <span>Pan Limit Z</span>
+                    <input type="number" name="panLimitZ" step="0.5" min="0" required />
+                </label>
+                <label class="field">
+                    <span>Min Height</span>
+                    <input type="number" name="minHeight" step="0.5" min="0" required />
+                </label>
+                <label class="field">
+                    <span>Max Height</span>
+                    <input type="number" name="maxHeight" step="0.5" min="0" required />
+                </label>
+                <label class="field">
+                    <span>Pan Speed</span>
+                    <input type="number" name="panSpeed" step="0.5" min="0" required />
+                </label>
+                <label class="field">
+                    <span>Frustum Size</span>
+                    <input type="number" name="frustum" step="1" min="10" required />
+                </label>
+            </div>
+            <button type="button" class="btn primary full-width" id="save-settings">Save</button>
+        </form>
+    </aside>
     <div class="hud-floating">
         <div class="hud-floating__stats">
             <div class="stat">
