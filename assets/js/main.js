@@ -223,6 +223,13 @@ for (let i = 0; i < 16; i += 1) {
 }
 
 const playerInput = { forward: false, backward: false, left: false, right: false, boost: false };
+let movementState = 'idle';
+
+function setMovementState(nextState) {
+    if (movementState === nextState) return;
+    movementState = nextState;
+    console.log(`Player state: ${movementState}`);
+}
 
 function handleKeyChange(key, value) {
     let handled = true;
@@ -374,9 +381,12 @@ function updatePlayer(delta) {
     if (playerInput.backward) move.z += 1;
     if (playerInput.left) move.x -= 1;
     if (playerInput.right) move.x += 1;
+    let state = 'idle';
     if (move.lengthSq() > 0) {
         move.normalize();
+        state = playerInput.boost ? 'running' : 'walking';
     }
+    setMovementState(state);
     const speed = (playerInput.boost ? 18 : 12) * delta;
     move.multiplyScalar(speed);
     player.position.add(move);
