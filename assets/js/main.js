@@ -1,5 +1,5 @@
-﻿import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
-import { FBXLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/FBXLoader.js';
+import * as THREE from 'three';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 
 const SETTINGS_STORAGE_KEY = 'beefbeaterCameraSettings';
 const defaultCameraSettings = {
@@ -456,4 +456,5 @@ window.addEventListener('resize', () => {
 
 resetGame();
 animate();
+
 
