@@ -144,7 +144,7 @@ const playerPlaceholder = new THREE.Mesh(playerPlaceholderGeo, playerPlaceholder
 player.add(playerPlaceholder);
 
 const playerModelLoader = new FBXLoader();
-const PLAYER_MODEL_PATH = 'assets/rawdata/mesh/BEEFBEATER_TBONE_Mesh.fbx';
+const PLAYER_MODEL_PATH = 'assets/rawdata/mesh/character_Mesh.fbx';
 
 function normalizePlayerModel(model) {
     const centeredBox = new THREE.Box3().setFromObject(model);
