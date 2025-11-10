@@ -1,4 +1,5 @@
 ﻿import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+import { FBXLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/FBXLoader.js';
 
 const SETTINGS_STORAGE_KEY = 'beefbeaterCameraSettings';
 const defaultCameraSettings = {
@@ -133,16 +134,56 @@ function createTrees() {
 createPastures();
 createTrees();
 
-const playerGeo = new THREE.CapsuleGeometry(0.6, 1.4, 8, 16);
-const playerMat = new THREE.MeshStandardMaterial({ color: 0xfdf5a6, emissive: 0xffd166, emissiveIntensity: 0.8, roughness: 0.4 });
-const player = new THREE.Mesh(playerGeo, playerMat);
+const player = new THREE.Group();
 player.position.set(0, 1.2, 0);
 scene.add(player);
+
+const playerPlaceholderGeo = new THREE.CapsuleGeometry(0.6, 1.4, 8, 16);
+const playerPlaceholderMat = new THREE.MeshStandardMaterial({ color: 0xfdf5a6, emissive: 0xffd166, emissiveIntensity: 0.8, roughness: 0.4 });
+const playerPlaceholder = new THREE.Mesh(playerPlaceholderGeo, playerPlaceholderMat);
+player.add(playerPlaceholder);
+
+const playerModelLoader = new FBXLoader();
+const PLAYER_MODEL_PATH = 'assets/rawdata/mesh/BEEFBEATER_TBONE_Mesh.fbx';
+
+function normalizePlayerModel(model) {
+    const centeredBox = new THREE.Box3().setFromObject(model);
+    const center = centeredBox.getCenter(new THREE.Vector3());
+    model.position.sub(center);
+    const groundedBox = new THREE.Box3().setFromObject(model);
+    model.position.y -= groundedBox.min.y;
+}
+
+function loadPlayerMesh() {
+    playerModelLoader.load(
+        PLAYER_MODEL_PATH,
+        (fbx) => {
+            fbx.scale.setScalar(0.01);
+            normalizePlayerModel(fbx);
+            fbx.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+            player.add(fbx);
+            player.remove(playerPlaceholder);
+            playerPlaceholder.geometry.dispose();
+            playerPlaceholder.material.dispose();
+        },
+        undefined,
+        (error) => {
+            console.error('Failed to load player mesh.', error);
+        },
+    );
+}
+
+loadPlayerMesh();
 
 const arrowGeo = new THREE.ConeGeometry(0.35, 1.4, 16);
 const arrowMat = new THREE.MeshBasicMaterial({ color: 0xfff1a1 });
 const arrow = new THREE.Mesh(arrowGeo, arrowMat);
-arrow.position.set(0, 1.9, 0.3);
+arrow.position.set(0, 2.2, 0.3);
 arrow.rotation.x = Math.PI / 2;
 player.add(arrow);
 
