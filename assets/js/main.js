@@ -134,13 +134,15 @@ function createTrees() {
 createPastures();
 createTrees();
 
+const PLAYER_BASE_HEIGHT = 1.2;
 const player = new THREE.Group();
-player.position.set(0, 1.2, 0);
+player.position.set(0, PLAYER_BASE_HEIGHT, 0);
 scene.add(player);
 
 const playerPlaceholderGeo = new THREE.CapsuleGeometry(0.6, 1.4, 8, 16);
 const playerPlaceholderMat = new THREE.MeshStandardMaterial({ color: 0xfdf5a6, emissive: 0xffd166, emissiveIntensity: 0.8, roughness: 0.4 });
 const playerPlaceholder = new THREE.Mesh(playerPlaceholderGeo, playerPlaceholderMat);
+playerPlaceholder.position.y -= PLAYER_BASE_HEIGHT;
 player.add(playerPlaceholder);
 
 const playerModelLoader = new FBXLoader();
@@ -160,6 +162,7 @@ function loadPlayerMesh() {
         (fbx) => {
             fbx.scale.setScalar(0.01);
             normalizePlayerModel(fbx);
+            fbx.position.y -= PLAYER_BASE_HEIGHT;
             fbx.traverse((child) => {
                 if (child.isMesh) {
                     child.castShadow = true;
@@ -358,7 +361,7 @@ function updateUI() {
 
 function resetGame() {
     state.score = 0;
-    player.position.set(0, 1.2, 0);
+    player.position.set(0, PLAYER_BASE_HEIGHT, 0);
     cameraState.manual.set(0, 0, 0);
     cameraState.offset.set(cameraSettings.offsetX, cameraSettings.offsetY, cameraSettings.offsetZ);
     camera.position.set(cameraSettings.offsetX, cameraSettings.offsetY, cameraSettings.offsetZ);
