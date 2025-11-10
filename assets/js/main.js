@@ -3,9 +3,9 @@ import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 
 const SETTINGS_STORAGE_KEY = 'beefbeaterCameraSettings';
 const defaultCameraSettings = {
-    offsetX: -6,
+    offsetX: -10,
     offsetY: 12,
-    offsetZ: 30,
+    offsetZ: 20,
     panLimitX: 18,
     panLimitZ: 18,
     minHeight: 8,
