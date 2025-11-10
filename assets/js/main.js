@@ -41,8 +41,8 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 container.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x04070f);
-scene.fog = new THREE.Fog(0x04070f, 45, 140);
+scene.background = new THREE.Color(0xcfe0ff);
+scene.fog = new THREE.Fog(0xcfe0ff, 40, 160);
 
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 300);
 camera.position.set(cameraSettings.offsetX, cameraSettings.offsetY, cameraSettings.offsetZ);
@@ -73,22 +73,22 @@ function applyCameraSettings() {
 
 applyCameraSettings();
 
-const hemi = new THREE.HemisphereLight(0xa1b9ff, 0x05070d, 0.8);
-const dir = new THREE.DirectionalLight(0xffc7a4, 1.2);
-dir.position.set(25, 40, 10);
+const hemi = new THREE.HemisphereLight(0xf6fbff, 0x4f7042, 1.1);
+const dir = new THREE.DirectionalLight(0xfff3c2, 1.6);
+dir.position.set(25, 50, 20);
 dir.castShadow = false;
-const glow = new THREE.PointLight(0xff5caa, 8, 80);
-glow.position.set(-10, 12, -6);
+const glow = new THREE.PointLight(0xfff1a1, 2.5, 120);
+glow.position.set(-4, 18, -2);
 scene.add(hemi, dir, glow);
 
 const groundGeo = new THREE.PlaneGeometry(160, 160);
-const groundMat = new THREE.MeshStandardMaterial({ color: 0x0f2b12, roughness: 0.9, metalness: 0.05 });
+const groundMat = new THREE.MeshStandardMaterial({ color: 0x5b3a21, roughness: 0.95, metalness: 0.02 });
 const ground = new THREE.Mesh(groundGeo, groundMat);
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-const pastureColors = [0x1d5c2f, 0x236d38, 0x2f7f46, 0x3a8f52];
+const pastureColors = [0x3f8f3c, 0x4ba14c, 0x55b25a, 0x6ac16c];
 function createPastures() {
     const group = new THREE.Group();
     for (let i = 0; i < 14; i += 1) {
@@ -113,11 +113,11 @@ function createTrees() {
     const forest = new THREE.Group();
     for (let i = 0; i < 60; i += 1) {
         const trunkGeo = new THREE.CylinderGeometry(0.15, 0.2, 1.6, 8);
-        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5b3a1a, roughness: 0.9 });
+        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x7a4e2b, roughness: 0.85 });
         const trunk = new THREE.Mesh(trunkGeo, trunkMat);
 
         const crownGeo = new THREE.ConeGeometry(1.1, 2.4, 12);
-        const crownMat = new THREE.MeshStandardMaterial({ color: 0x2f8f4a, roughness: 0.4 });
+        const crownMat = new THREE.MeshStandardMaterial({ color: 0x4ac669, roughness: 0.35 });
         const crown = new THREE.Mesh(crownGeo, crownMat);
         crown.position.y = 1.4;
 
