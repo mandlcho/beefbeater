@@ -14,8 +14,8 @@ const defaultCameraSettings = {
     panSpeed: 18,
 };
 const defaultMovementSettings = {
-    walkSpeed: 12,
-    runSpeed: 18,
+    walkSpeed: 8,
+    runSpeed: 15,
 };
 
 function loadCameraSettings() {
