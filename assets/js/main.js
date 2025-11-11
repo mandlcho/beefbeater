@@ -13,7 +13,6 @@ const defaultCameraSettings = {
     maxHeight: 24,
     panSpeed: 18,
 };
-const MOVEMENT_SETTINGS_STORAGE_KEY = 'beefbeaterMovementSettings';
 const JUMP_SETTINGS_STORAGE_KEY = 'beefbeaterJumpSettings';
 const defaultMovementSettings = {
     walkSpeed: 8,
