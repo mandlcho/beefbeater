@@ -382,6 +382,31 @@ for (let i = 0; i < 16; i += 1) {
     spawnNode();
 }
 
+const ENEMY_COUNT = 8;
+const herd = [];
+const herdState = [];
+const enemyGeo = new THREE.BoxGeometry(1.4, 1, 2);
+const enemyMat = new THREE.MeshStandardMaterial({ color: 0xb08c5a, roughness: 0.7, metalness: 0.1 });
+
+function spawnCow() {
+    const cow = new THREE.Mesh(enemyGeo, enemyMat.clone());
+    cow.position.set(randomRange(-playArea, playArea), PLAYER_BASE_HEIGHT, randomRange(-playArea, playArea));
+    cow.castShadow = true;
+    cow.receiveShadow = true;
+    herd.push(cow);
+    herdState.push({
+        mode: 'graze',
+        timer: randomRange(1.5, 3.5),
+        target: cow.position.clone(),
+        nibbleOffset: Math.random() * Math.PI * 2,
+    });
+    scene.add(cow);
+}
+
+for (let i = 0; i < ENEMY_COUNT; i += 1) {
+    spawnCow();
+}
+
 const playerInput = { forward: false, backward: false, left: false, right: false, boost: false };
 let movementState = 'idle';
 let movementMode = 'run';
@@ -782,6 +807,50 @@ function collectNode(node) {
     updateUI();
 }
 
+function chooseNewTarget(state) {
+    state.target.set(randomRange(-playArea, playArea), PLAYER_BASE_HEIGHT, randomRange(-playArea, playArea));
+    state.mode = 'move';
+    state.timer = randomRange(4, 7);
+}
+
+function startGrazing(state) {
+    state.mode = 'graze';
+    state.timer = randomRange(1.2, 3.2);
+}
+
+function updateHerd(delta) {
+    herd.forEach((cow, index) => {
+        const state = herdState[index];
+        state.timer -= delta;
+
+        if (state.mode === 'move') {
+            const direction = state.target.clone().sub(cow.position);
+            const distance = direction.length();
+            if (distance < 0.4) {
+                startGrazing(state);
+            } else {
+                direction.normalize().multiplyScalar(delta * 3);
+                cow.position.add(direction);
+                cow.position.x = THREE.MathUtils.clamp(cow.position.x, -playArea, playArea);
+                cow.position.z = THREE.MathUtils.clamp(cow.position.z, -playArea, playArea);
+                cow.position.y = PLAYER_BASE_HEIGHT;
+                cow.rotation.y = Math.atan2(direction.x, direction.z);
+            }
+        } else {
+            const nibble = Math.sin(elapsed * 4 + state.nibbleOffset) * 0.08;
+            cow.position.y = PLAYER_BASE_HEIGHT - 0.1 + nibble;
+        }
+
+        if (state.timer <= 0) {
+            if (state.mode === 'move') {
+                startGrazing(state);
+            } else {
+                chooseNewTarget(state);
+            }
+        }
+    });
+}
+
 const clock = new THREE.Clock();
 
 function animate() {
@@ -790,6 +859,7 @@ function animate() {
     updatePlayer(delta);
     updateCamera(delta);
     updateNodes(delta);
+    updateHerd(delta);
     if (playerMixer) {
         playerMixer.update(delta);
     }
