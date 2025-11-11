@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 
 const SETTINGS_STORAGE_KEY = 'beefbeaterCameraSettings';
+const MOVEMENT_SETTINGS_STORAGE_KEY = 'beefbeaterMovementSettings';
 const defaultCameraSettings = {
     offsetX: -10,
     offsetY: 12,
@@ -11,6 +12,10 @@ const defaultCameraSettings = {
     minHeight: 8,
     maxHeight: 24,
     panSpeed: 18,
+};
+const defaultMovementSettings = {
+    walkSpeed: 12,
+    runSpeed: 18,
 };
 
 function loadCameraSettings() {
@@ -32,7 +37,29 @@ function persistCameraSettings(settings) {
     }
 }
 
+function loadMovementSettings() {
+    try {
+        const stored = localStorage.getItem(MOVEMENT_SETTINGS_STORAGE_KEY);
+        if (!stored) return { ...defaultMovementSettings };
+        return { ...defaultMovementSettings, ...JSON.parse(stored) };
+    } catch (error) {
+        console.warn('Unable to load movement settings; using defaults.', error);
+        return { ...defaultMovementSettings };
+    }
+}
+
+function persistMovementSettings(settings) {
+    try {
+        localStorage.setItem(MOVEMENT_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    } catch (error) {
+        console.warn('Unable to save movement settings.', error);
+    }
+}
+
 let cameraSettings = loadCameraSettings();
+let movementSettings = loadMovementSettings();
+
+const playArea = 70;
 
 const container = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
@@ -63,8 +90,9 @@ const cameraInput = { forward: false, backward: false, left: false, right: false
 
 function applyCameraSettings() {
     cameraState.offset.set(cameraSettings.offsetX, cameraSettings.offsetY, cameraSettings.offsetZ);
-    cameraState.limits.x = Math.abs(cameraSettings.panLimitX);
-    cameraState.limits.z = Math.abs(cameraSettings.panLimitZ);
+    const minPanLimit = playArea;
+    cameraState.limits.x = Math.max(Math.abs(cameraSettings.panLimitX), minPanLimit);
+    cameraState.limits.z = Math.max(Math.abs(cameraSettings.panLimitZ), minPanLimit);
     cameraState.limits.yMin = Math.min(cameraSettings.minHeight, cameraSettings.maxHeight);
     cameraState.limits.yMax = Math.max(cameraSettings.minHeight, cameraSettings.maxHeight);
     cameraState.manual.x = THREE.MathUtils.clamp(cameraState.manual.x, -cameraState.limits.x, cameraState.limits.x);
@@ -89,11 +117,36 @@ ground.receiveShadow = true;
 scene.add(ground);
 
 const pastureColors = [0x3f8f3c, 0x4ba14c, 0x55b25a, 0x6ac16c];
+const pasturePadding = 1.5;
+const pastureSpread = Math.min(playArea * 1.2, 75);
+const pasturePlacementAttempts = 30;
+
+function patchesOverlap(position, width, height, placed) {
+    return placed.some((patch) => {
+        const overlapX = Math.abs(position.x - patch.x) < (width + patch.width) / 2 + pasturePadding;
+        const overlapZ = Math.abs(position.z - patch.z) < (height + patch.height) / 2 + pasturePadding;
+        return overlapX && overlapZ;
+    });
+}
+
 function createPastures() {
     const group = new THREE.Group();
+    const placed = [];
     for (let i = 0; i < 14; i += 1) {
         const width = THREE.MathUtils.randFloat(6, 14);
         const height = THREE.MathUtils.randFloat(6, 16);
+        let position = null;
+        for (let attempt = 0; attempt < pasturePlacementAttempts; attempt += 1) {
+            const candidate = {
+                x: THREE.MathUtils.randFloatSpread(pastureSpread),
+                z: THREE.MathUtils.randFloatSpread(pastureSpread),
+            };
+            if (!patchesOverlap(candidate, width, height, placed)) {
+                position = candidate;
+                break;
+            }
+        }
+        if (!position) continue;
         const geo = new THREE.PlaneGeometry(width, height);
         const mat = new THREE.MeshStandardMaterial({
             color: pastureColors[Math.floor(Math.random() * pastureColors.length)],
@@ -102,8 +155,9 @@ function createPastures() {
         });
         const patch = new THREE.Mesh(geo, mat);
         patch.rotation.x = -Math.PI / 2;
-        patch.position.set(THREE.MathUtils.randFloatSpread(80), 0.05, THREE.MathUtils.randFloatSpread(80));
+        patch.position.set(position.x, 0.05, position.z);
         patch.receiveShadow = true;
+        placed.push({ x: position.x, z: position.z, width, height });
         group.add(patch);
     }
     scene.add(group);
@@ -112,19 +166,21 @@ function createPastures() {
 function createTrees() {
     const forest = new THREE.Group();
     for (let i = 0; i < 60; i += 1) {
-        const trunkGeo = new THREE.CylinderGeometry(0.15, 0.2, 1.6, 8);
+        const trunkHeight = THREE.MathUtils.randFloat(2.8, 4.6);
+        const trunkGeo = new THREE.CylinderGeometry(0.2, 0.35, trunkHeight, 10);
         const trunkMat = new THREE.MeshStandardMaterial({ color: 0x7a4e2b, roughness: 0.85 });
         const trunk = new THREE.Mesh(trunkGeo, trunkMat);
 
-        const crownGeo = new THREE.ConeGeometry(1.1, 2.4, 12);
+        const crownHeight = THREE.MathUtils.randFloat(trunkHeight * 0.9, trunkHeight * 1.3);
+        const crownGeo = new THREE.ConeGeometry(1.4, crownHeight, 14);
         const crownMat = new THREE.MeshStandardMaterial({ color: 0x4ac669, roughness: 0.35 });
         const crown = new THREE.Mesh(crownGeo, crownMat);
-        crown.position.y = 1.4;
+        crown.position.y = trunkHeight / 2 + crownHeight / 2;
 
         const tree = new THREE.Group();
         tree.add(trunk);
         tree.add(crown);
-        tree.position.set(THREE.MathUtils.randFloatSpread(70), 0.8, THREE.MathUtils.randFloatSpread(70));
+        tree.position.set(THREE.MathUtils.randFloatSpread(playArea), trunkHeight / 2, THREE.MathUtils.randFloatSpread(playArea));
         tree.rotation.y = THREE.MathUtils.randFloat(0, Math.PI * 2);
         forest.add(tree);
     }
@@ -256,7 +312,6 @@ scene.add(playerShadow);
 
 const nodes = [];
 const nodeGeo = new THREE.SphereGeometry(0.75, 16, 16);
-const playArea = 32;
 function randomRange(min, max) {
     return Math.random() * (max - min) + min;
 }
@@ -356,6 +411,8 @@ const bestEl = document.querySelector('[data-best]');
 const resetButton = document.getElementById('reset-button');
 const cameraForm = document.getElementById('camera-form');
 const saveSettingsButton = document.getElementById('save-settings');
+const movementForm = document.getElementById('movement-form');
+const saveMovementButton = document.getElementById('save-movement');
 const startScreen = document.querySelector('[data-start-screen]');
 const startButton = document.querySelector('[data-start-button]');
 
@@ -385,6 +442,19 @@ function populateCameraForm() {
     Object.entries(mapping).forEach(([field, value]) => {
         if (cameraForm.elements[field]) {
             cameraForm.elements[field].value = value;
+        }
+    });
+}
+
+function populateMovementForm() {
+    if (!movementForm) return;
+    const mapping = {
+        walkSpeed: movementSettings.walkSpeed,
+        runSpeed: movementSettings.runSpeed,
+    };
+    Object.entries(mapping).forEach(([field, value]) => {
+        if (movementForm.elements[field]) {
+            movementForm.elements[field].value = value;
         }
     });
 }
@@ -429,6 +499,32 @@ if (saveSettingsButton) {
     saveSettingsButton.addEventListener('click', handleSaveSettings);
 }
 
+let saveMovementFeedbackTimeout;
+function handleSaveMovement() {
+    if (!movementForm) return;
+    const formData = new FormData(movementForm);
+    const walkSpeed = Math.max(0.1, toNumber(formData.get('walkSpeed'), movementSettings.walkSpeed));
+    let runSpeed = Math.max(0.1, toNumber(formData.get('runSpeed'), movementSettings.runSpeed));
+    if (runSpeed <= walkSpeed) {
+        runSpeed = walkSpeed + 1;
+    }
+    movementSettings = { walkSpeed, runSpeed };
+    persistMovementSettings(movementSettings);
+    if (saveMovementButton) {
+        const original = saveMovementButton.textContent;
+        saveMovementButton.textContent = 'Saved!';
+        clearTimeout(saveMovementFeedbackTimeout);
+        saveMovementFeedbackTimeout = setTimeout(() => {
+            saveMovementButton.textContent = original;
+        }, 1400);
+    }
+}
+
+populateMovementForm();
+if (saveMovementButton) {
+    saveMovementButton.addEventListener('click', handleSaveMovement);
+}
+
 function updateUI() {
     scoreEl.textContent = Math.round(state.score);
     bestEl.textContent = Math.round(state.best);
@@ -455,7 +551,8 @@ function updatePlayer(delta) {
         state = playerInput.boost ? 'running' : 'walking';
     }
     setMovementState(state);
-    const speed = (playerInput.boost ? 18 : 12) * delta;
+    const baseSpeed = playerInput.boost ? movementSettings.runSpeed : movementSettings.walkSpeed;
+    const speed = baseSpeed * delta;
     move.multiplyScalar(speed);
     player.position.add(move);
     player.position.x = THREE.MathUtils.clamp(player.position.x, -playArea, playArea);
