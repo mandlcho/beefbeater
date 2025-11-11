@@ -286,6 +286,7 @@ function setMovementState(nextState) {
 }
 
 function handleKeyChange(key, value) {
+    if (!isGameActive) return false;
     let handled = true;
     switch (key) {
         case 'w':
@@ -337,6 +338,7 @@ window.addEventListener('keyup', (event) => {
 window.addEventListener(
     'wheel',
     (event) => {
+        if (!isGameActive) return;
         event.preventDefault();
         cameraInput.scrollDelta += event.deltaY;
     },
@@ -348,13 +350,19 @@ const bestEl = document.querySelector('[data-best]');
 const resetButton = document.getElementById('reset-button');
 const cameraForm = document.getElementById('camera-form');
 const saveSettingsButton = document.getElementById('save-settings');
+const startScreen = document.querySelector('[data-start-screen]');
+const startButton = document.querySelector('[data-start-button]');
+
+let isGameActive = false;
 
 const state = {
     score: 0,
     best: 0,
 };
 
-resetButton.addEventListener('click', resetGame);
+if (resetButton) {
+    resetButton.addEventListener('click', resetGame);
+}
 
 function populateCameraForm() {
     if (!cameraForm) return;
@@ -505,6 +513,7 @@ function collectNode(node) {
 const clock = new THREE.Clock();
 
 function animate() {
+    if (!isGameActive) return;
     const delta = clock.getDelta();
     updatePlayer(delta);
     updateCamera(delta);
@@ -517,14 +526,29 @@ function animate() {
     requestAnimationFrame(animate);
 }
 
+function startGame() {
+    if (isGameActive) return;
+    isGameActive = true;
+    document.body.dataset.gameState = 'playing';
+    clock.start();
+    resetGame();
+    animate();
+}
+
+if (startButton) {
+    startButton.addEventListener('click', () => {
+        startGame();
+        if (startScreen) {
+            startScreen.setAttribute('aria-hidden', 'true');
+        }
+    });
+} else {
+    startGame();
+}
+
 window.addEventListener('resize', () => {
     const { innerWidth, innerHeight } = window;
     camera.aspect = innerWidth / innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(innerWidth, innerHeight);
 });
-
-resetGame();
-animate();
-
-

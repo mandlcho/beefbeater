@@ -14,9 +14,17 @@
         }
     </script>
 </head>
-<body>
+<body data-game-state="intro">
+    <div class="start-screen" data-start-screen>
+        <div class="start-screen__content">
+            <p class="start-screen__eyebrow">Neon Surveyor</p>
+            <h1 class="start-screen__title">Beef Beater</h1>
+            <p class="start-screen__copy">Crank the thrusters and prep the herd. When you're ready, drop into the pasture.</p>
+            <button class="btn primary start-screen__button" type="button" data-start-button>Start Game</button>
+        </div>
+    </div>
     <div id="game" role="presentation" aria-hidden="true"></div>
-    <aside class="control-panel" aria-label="Camera settings panel">
+    <aside class="control-panel" aria-label="Camera settings panel" data-game-ui>
         <div class="control-panel__tabs">
             <button class="control-panel__tab control-panel__tab--active" type="button">Camera Settings</button>
         </div>
@@ -58,7 +66,7 @@
             <button type="button" class="btn primary full-width" id="save-settings">Save</button>
         </form>
     </aside>
-    <div class="hud-floating">
+    <div class="hud-floating" data-game-ui>
         <div class="hud-floating__stats">
             <div class="stat">
                 <span>Score</span>
