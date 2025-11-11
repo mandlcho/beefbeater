@@ -232,6 +232,35 @@ function createTrees() {
 }
 
 createPastures();
+const treeObstacles = [];
+function createTrees() {
+    const forest = new THREE.Group();
+    for (let i = 0; i < 60; i += 1) {
+        const trunkHeight = THREE.MathUtils.randFloat(2.8, 4.6);
+        const trunkGeo = new THREE.CylinderGeometry(0.2, 0.35, trunkHeight, 10);
+        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x7a4e2b, roughness: 0.85 });
+        const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+
+        const crownHeight = THREE.MathUtils.randFloat(trunkHeight * 0.9, trunkHeight * 1.3);
+        const crownGeo = new THREE.ConeGeometry(1.4, crownHeight, 14);
+        const crownMat = new THREE.MeshStandardMaterial({ color: 0x4ac669, roughness: 0.35 });
+        const crown = new THREE.Mesh(crownGeo, crownMat);
+        crown.position.y = trunkHeight / 2 + crownHeight / 2;
+
+        const tree = new THREE.Group();
+        tree.add(trunk);
+        tree.add(crown);
+        tree.position.set(THREE.MathUtils.randFloatSpread(playArea), trunkHeight / 2, THREE.MathUtils.randFloatSpread(playArea));
+        tree.rotation.y = THREE.MathUtils.randFloat(0, Math.PI * 2);
+        forest.add(tree);
+        treeObstacles.push({
+            x: tree.position.x,
+            z: tree.position.z,
+            radius: 2.4,
+        });
+    }
+    scene.add(forest);
+}
 createTrees();
 
 const PLAYER_BASE_HEIGHT = 1.2;
@@ -388,16 +417,40 @@ const herdState = [];
 const enemyGeo = new THREE.BoxGeometry(1.4, 1, 2);
 const enemyMat = new THREE.MeshStandardMaterial({ color: 0xb08c5a, roughness: 0.7, metalness: 0.1 });
 
+function isPositionBlocked(position) {
+    return treeObstacles.some((tree) => {
+        const dx = position.x - tree.x;
+        const dz = position.z - tree.z;
+        const distance = Math.hypot(dx, dz);
+        return distance < tree.radius + 0.6;
+    });
+}
+
+function pickWanderPosition() {
+    for (let attempt = 0; attempt < 24; attempt += 1) {
+        const candidate = new THREE.Vector3(
+            randomRange(-playArea, playArea),
+            PLAYER_BASE_HEIGHT,
+            randomRange(-playArea, playArea),
+        );
+        if (!isPositionBlocked(candidate)) {
+            return candidate;
+        }
+    }
+    return new THREE.Vector3(0, PLAYER_BASE_HEIGHT, 0);
+}
+
 function spawnCow() {
+    let spawnPos = pickWanderPosition();
     const cow = new THREE.Mesh(enemyGeo, enemyMat.clone());
-    cow.position.set(randomRange(-playArea, playArea), PLAYER_BASE_HEIGHT, randomRange(-playArea, playArea));
+    cow.position.copy(spawnPos);
     cow.castShadow = true;
     cow.receiveShadow = true;
     herd.push(cow);
     herdState.push({
         mode: 'graze',
         timer: randomRange(1.5, 3.5),
-        target: cow.position.clone(),
+        target: pickWanderPosition(),
         nibbleOffset: Math.random() * Math.PI * 2,
     });
     scene.add(cow);
@@ -807,10 +860,14 @@ function collectNode(node) {
     updateUI();
 }
 
-function chooseNewTarget(state) {
-    state.target.set(randomRange(-playArea, playArea), PLAYER_BASE_HEIGHT, randomRange(-playArea, playArea));
+function chooseNewTarget(state, fallbackPosition) {
+    const target = pickWanderPosition();
+    state.target.copy(target);
     state.mode = 'move';
     state.timer = randomRange(4, 7);
+    if (fallbackPosition) {
+        state.target.y = fallbackPosition.y;
+    }
 }
 
 function startGrazing(state) {
@@ -824,17 +881,24 @@ function updateHerd(delta) {
         state.timer -= delta;
 
         if (state.mode === 'move') {
-            const direction = state.target.clone().sub(cow.position);
+            cow.position.y = PLAYER_BASE_HEIGHT;
+            const target = state.target;
+            const direction = target.clone().sub(cow.position);
             const distance = direction.length();
             if (distance < 0.4) {
                 startGrazing(state);
             } else {
                 direction.normalize().multiplyScalar(delta * 3);
-                cow.position.add(direction);
-                cow.position.x = THREE.MathUtils.clamp(cow.position.x, -playArea, playArea);
-                cow.position.z = THREE.MathUtils.clamp(cow.position.z, -playArea, playArea);
-                cow.position.y = PLAYER_BASE_HEIGHT;
-                cow.rotation.y = Math.atan2(direction.x, direction.z);
+                const nextPos = cow.position.clone().add(direction);
+                nextPos.x = THREE.MathUtils.clamp(nextPos.x, -playArea, playArea);
+                nextPos.z = THREE.MathUtils.clamp(nextPos.z, -playArea, playArea);
+                nextPos.y = PLAYER_BASE_HEIGHT;
+                if (isPositionBlocked(nextPos)) {
+                    chooseNewTarget(state, cow.position);
+                } else {
+                    cow.position.copy(nextPos);
+                    cow.rotation.y = Math.atan2(direction.x, direction.z);
+                }
             }
         } else {
             const nibble = Math.sin(elapsed * 4 + state.nibbleOffset) * 0.08;
