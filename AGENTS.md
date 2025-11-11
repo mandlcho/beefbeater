@@ -3,7 +3,7 @@
 ## Project Structure & Module Organization
 ```
 beefbeater/
-|-- index.html            # Neon Surveyor entry (full canvas + floating HUD chips)
+|-- index.html            # Game entry (full canvas + floating HUD chips)
 |-- assets/
 |   |-- css/styles.css    # HUD + button styling, global tokens
 |   `-- js/main.js        # Three.js scene graph, camera rig, gameplay loop
