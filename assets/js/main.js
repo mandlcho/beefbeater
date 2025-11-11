@@ -147,6 +147,14 @@ player.add(playerPlaceholder);
 
 const playerModelLoader = new FBXLoader();
 const PLAYER_MODEL_PATH = 'assets/rawdata/mesh/character_Mesh.fbx';
+const playerAnimationLoader = new FBXLoader();
+const PLAYER_ANIMATION_PATHS = {
+    idle: 'assets/rawdata/animations/BEEFBEATER_TBONE2_Idle.fbx',
+    run: 'assets/rawdata/animations/BEEFBEATER_TBONE2_Run.fbx',
+};
+let playerMixer = null;
+const playerActions = {};
+let activeAnimationKey = null;
 
 function normalizePlayerModel(model) {
     const centeredBox = new THREE.Box3().setFromObject(model);
@@ -154,6 +162,48 @@ function normalizePlayerModel(model) {
     model.position.sub(center);
     const groundedBox = new THREE.Box3().setFromObject(model);
     model.position.y -= groundedBox.min.y;
+}
+
+function loadPlayerAnimations(model) {
+    playerMixer = new THREE.AnimationMixer(model);
+    Object.entries(PLAYER_ANIMATION_PATHS).forEach(([key, path]) => {
+        playerAnimationLoader.load(
+            path,
+            (anim) => {
+                if (!anim.animations || anim.animations.length === 0) return;
+                const clip = anim.animations[0];
+                const action = playerMixer.clipAction(clip);
+                action.loop = THREE.LoopRepeat;
+                action.clampWhenFinished = false;
+                playerActions[key] = action;
+                updateMovementAnimation(movementState);
+            },
+            undefined,
+            (error) => {
+                console.error(`Failed to load ${key} animation.`, error);
+            },
+        );
+    });
+}
+
+function playPlayerAnimation(key) {
+    const next = playerActions[key];
+    if (!next || activeAnimationKey === key) return;
+    const previousKey = activeAnimationKey;
+    const previous = previousKey ? playerActions[previousKey] : null;
+    next.enabled = true;
+    next.reset();
+    next.fadeIn(0.25).play();
+    if (previous && previous !== next) {
+        previous.fadeOut(0.25);
+    }
+    activeAnimationKey = key;
+}
+
+function updateMovementAnimation(state) {
+    if (!playerMixer) return;
+    const animationKey = state === 'idle' ? 'idle' : 'run';
+    playPlayerAnimation(animationKey);
 }
 
 function loadPlayerMesh() {
@@ -173,6 +223,7 @@ function loadPlayerMesh() {
             player.remove(playerPlaceholder);
             playerPlaceholder.geometry.dispose();
             playerPlaceholder.material.dispose();
+            loadPlayerAnimations(fbx);
         },
         undefined,
         (error) => {
@@ -226,9 +277,12 @@ const playerInput = { forward: false, backward: false, left: false, right: false
 let movementState = 'idle';
 
 function setMovementState(nextState) {
-    if (movementState === nextState) return;
+    const changed = movementState !== nextState;
     movementState = nextState;
-    console.log(`Player state: ${movementState}`);
+    if (changed) {
+        console.log(`Player state: ${movementState}`);
+    }
+    updateMovementAnimation(movementState);
 }
 
 function handleKeyChange(key, value) {
@@ -455,6 +509,9 @@ function animate() {
     updatePlayer(delta);
     updateCamera(delta);
     updateNodes(delta);
+    if (playerMixer) {
+        playerMixer.update(delta);
+    }
 
     renderer.render(scene, camera);
     requestAnimationFrame(animate);
