@@ -17,6 +17,8 @@ const defaultMovementSettings = {
     walkSpeed: 8,
     runSpeed: 15,
 };
+const GRAVITY = -32;
+const JUMP_FORCE = 16;
 
 function loadCameraSettings() {
     try {
@@ -194,6 +196,10 @@ const PLAYER_BASE_HEIGHT = 1.2;
 const player = new THREE.Group();
 player.position.set(0, PLAYER_BASE_HEIGHT, 0);
 scene.add(player);
+const playerVelocity = new THREE.Vector3();
+const playerState = {
+    isGrounded: true,
+};
 
 const playerPlaceholderGeo = new THREE.CapsuleGeometry(0.6, 1.4, 8, 16);
 const playerPlaceholderMat = new THREE.MeshStandardMaterial({ color: 0xfdf5a6, emissive: 0xffd166, emissiveIntensity: 0.8, roughness: 0.4 });
@@ -386,13 +392,52 @@ function handleKeyChange(key, value) {
     return handled;
 }
 
+function attemptJump() {
+    if (!isGameActive || !playerState.isGrounded) return;
+    playerVelocity.y = JUMP_FORCE;
+    playerState.isGrounded = false;
+    playJumpAnimation();
+}
+
+function playJumpAnimation() {
+    // Placeholder for future jump animation trigger
+}
+
+function handleAttackInput(key) {
+    if (!isGameActive) return;
+    const attackMap = {
+        j: 'Light',
+        k: 'Medium',
+        l: 'Heavy',
+    };
+    if (attackMap[key]) {
+        console.log(`[Attack] ${attackMap[key]} attack triggered`);
+    }
+}
+
 window.addEventListener('keydown', (event) => {
-    const handled = handleKeyChange(event.key.toLowerCase(), true);
+    const key = event.key.toLowerCase();
+    if (event.code === 'Space') {
+        attemptJump();
+        event.preventDefault();
+        return;
+    }
+    if (['j', 'k', 'l'].includes(key)) {
+        handleAttackInput(key);
+        event.preventDefault();
+        return;
+    }
+    const handled = handleKeyChange(key, true);
     if (handled) event.preventDefault();
 });
 
 window.addEventListener('keyup', (event) => {
-    const handled = handleKeyChange(event.key.toLowerCase(), false);
+    const key = event.key.toLowerCase();
+    if (event.code === 'Space') {
+        event.preventDefault();
+        return;
+    }
+    const handled = handleKeyChange(key, false);
     if (handled) event.preventDefault();
 });
 
@@ -533,6 +578,8 @@ function updateUI() {
 function resetGame() {
     state.score = 0;
     player.position.set(0, PLAYER_BASE_HEIGHT, 0);
+    playerVelocity.set(0, 0, 0);
+    playerState.isGrounded = true;
     cameraState.manual.set(0, 0, 0);
     cameraState.offset.set(cameraSettings.offsetX, cameraSettings.offsetY, cameraSettings.offsetZ);
     camera.position.set(cameraSettings.offsetX, cameraSettings.offsetY, cameraSettings.offsetZ);
@@ -550,16 +597,28 @@ function updatePlayer(delta) {
         move.normalize();
         state = playerInput.boost ? 'running' : 'walking';
     }
+    if (!playerState.isGrounded && state === 'idle') {
+        state = movementState;
+    }
     setMovementState(state);
     const baseSpeed = playerInput.boost ? movementSettings.runSpeed : movementSettings.walkSpeed;
-    const speed = baseSpeed * delta;
-    move.multiplyScalar(speed);
+    move.multiplyScalar(baseSpeed * delta);
     player.position.add(move);
     player.position.x = THREE.MathUtils.clamp(player.position.x, -playArea, playArea);
     player.position.z = THREE.MathUtils.clamp(player.position.z, -playArea, playArea);
 
     if (move.lengthSq() > 0) {
         player.rotation.y = Math.atan2(move.x, move.z);
+    }
+
+    playerVelocity.y += GRAVITY * delta;
+    player.position.y += playerVelocity.y * delta;
+    if (player.position.y <= PLAYER_BASE_HEIGHT) {
+        player.position.y = PLAYER_BASE_HEIGHT;
+        playerVelocity.y = 0;
+        playerState.isGrounded = true;
+    } else {
+        playerState.isGrounded = false;
     }
 
     playerShadow.position.x = player.position.x;
