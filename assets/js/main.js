@@ -82,16 +82,24 @@ function persistJumpSettings(settings) {
     }
 }
 
-function clampJumpSettings(settings) {
-    return {
-        jumpForce: Math.max(MIN_JUMP_FORCE, settings.jumpForce),
-        gravity: Math.max(MIN_GRAVITY, settings.gravity),
+function normalizeJumpSettings(rawSettings = {}) {
+    const merged = {
+        ...defaultJumpSettings,
+        ...rawSettings,
     };
+    const normalized = { ...merged };
+    if (!(Number.isFinite(normalized.jumpForce) && normalized.jumpForce >= MIN_JUMP_FORCE)) {
+        normalized.jumpForce = defaultJumpSettings.jumpForce;
+    }
+    if (!(Number.isFinite(normalized.gravity) && normalized.gravity >= MIN_GRAVITY)) {
+        normalized.gravity = defaultJumpSettings.gravity;
+    }
+    return normalized;
 }
 
 let cameraSettings = loadCameraSettings();
 let movementSettings = loadMovementSettings();
-let jumpSettings = clampJumpSettings(loadJumpSettings());
+let jumpSettings = normalizeJumpSettings(loadJumpSettings());
 let gravity = -jumpSettings.gravity;
 let jumpForce = jumpSettings.jumpForce;
 
@@ -651,7 +659,7 @@ function handleSaveJump() {
     const formData = new FormData(jumpForm);
     const nextJumpForce = toNumber(formData.get('jumpForce'), jumpSettings.jumpForce);
     const gravityMagnitude = toNumber(formData.get('gravity'), jumpSettings.gravity);
-    jumpSettings = clampJumpSettings({ jumpForce: nextJumpForce, gravity: gravityMagnitude });
+    jumpSettings = normalizeJumpSettings({ jumpForce: nextJumpForce, gravity: gravityMagnitude });
     jumpForce = jumpSettings.jumpForce;
     gravity = -jumpSettings.gravity;
     persistJumpSettings(jumpSettings);
