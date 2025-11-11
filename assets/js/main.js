@@ -19,8 +19,8 @@ const defaultMovementSettings = {
     runSpeed: 13,
 };
 const defaultJumpSettings = {
-    jumpForce: 16,
-    gravity: 5,
+    jumpForce: 14,
+    gravity: 28,
 };
 const MIN_JUMP_FORCE = 0.1;
 const MIN_GRAVITY = 0.1;
