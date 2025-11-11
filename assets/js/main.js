@@ -207,30 +207,6 @@ function createPastures() {
     scene.add(group);
 }
 
-function createTrees() {
-    const forest = new THREE.Group();
-    for (let i = 0; i < 60; i += 1) {
-        const trunkHeight = THREE.MathUtils.randFloat(2.8, 4.6);
-        const trunkGeo = new THREE.CylinderGeometry(0.2, 0.35, trunkHeight, 10);
-        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x7a4e2b, roughness: 0.85 });
-        const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-
-        const crownHeight = THREE.MathUtils.randFloat(trunkHeight * 0.9, trunkHeight * 1.3);
-        const crownGeo = new THREE.ConeGeometry(1.4, crownHeight, 14);
-        const crownMat = new THREE.MeshStandardMaterial({ color: 0x4ac669, roughness: 0.35 });
-        const crown = new THREE.Mesh(crownGeo, crownMat);
-        crown.position.y = trunkHeight / 2 + crownHeight / 2;
-
-        const tree = new THREE.Group();
-        tree.add(trunk);
-        tree.add(crown);
-        tree.position.set(THREE.MathUtils.randFloatSpread(playArea), trunkHeight / 2, THREE.MathUtils.randFloatSpread(playArea));
-        tree.rotation.y = THREE.MathUtils.randFloat(0, Math.PI * 2);
-        forest.add(tree);
-    }
-    scene.add(forest);
-}
-
 createPastures();
 const treeObstacles = [];
 function createTrees() {
