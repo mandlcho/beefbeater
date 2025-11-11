@@ -17,11 +17,11 @@ const MOVEMENT_SETTINGS_STORAGE_KEY = 'beefbeaterMovementSettings';
 const JUMP_SETTINGS_STORAGE_KEY = 'beefbeaterJumpSettings';
 const defaultMovementSettings = {
     walkSpeed: 8,
-    runSpeed: 15,
+    runSpeed: 13,
 };
 const defaultJumpSettings = {
-    jumpForce: 16,
-    gravity: 32,
+    jumpForce: 0,
+    gravity: 5,
 };
 
 function loadCameraSettings() {
