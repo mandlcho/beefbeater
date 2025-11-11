@@ -19,9 +19,11 @@ const defaultMovementSettings = {
     runSpeed: 13,
 };
 const defaultJumpSettings = {
-    jumpForce: 0,
+    jumpForce: 16,
     gravity: 5,
 };
+const MIN_JUMP_FORCE = 0.1;
+const MIN_GRAVITY = 0.1;
 
 function loadCameraSettings() {
     try {
@@ -80,10 +82,17 @@ function persistJumpSettings(settings) {
     }
 }
 
+function clampJumpSettings(settings) {
+    return {
+        jumpForce: Math.max(MIN_JUMP_FORCE, settings.jumpForce),
+        gravity: Math.max(MIN_GRAVITY, settings.gravity),
+    };
+}
+
 let cameraSettings = loadCameraSettings();
 let movementSettings = loadMovementSettings();
-let jumpSettings = loadJumpSettings();
-let gravity = -Math.abs(jumpSettings.gravity);
+let jumpSettings = clampJumpSettings(loadJumpSettings());
+let gravity = -jumpSettings.gravity;
 let jumpForce = jumpSettings.jumpForce;
 
 const playArea = 70;
@@ -640,11 +649,11 @@ let saveJumpFeedbackTimeout;
 function handleSaveJump() {
     if (!jumpForm) return;
     const formData = new FormData(jumpForm);
-    const nextJumpForce = Math.max(0.1, toNumber(formData.get('jumpForce'), jumpSettings.jumpForce));
-    const gravityMagnitude = Math.max(0.1, toNumber(formData.get('gravity'), jumpSettings.gravity));
-    jumpSettings = { jumpForce: nextJumpForce, gravity: gravityMagnitude };
+    const nextJumpForce = toNumber(formData.get('jumpForce'), jumpSettings.jumpForce);
+    const gravityMagnitude = toNumber(formData.get('gravity'), jumpSettings.gravity);
+    jumpSettings = clampJumpSettings({ jumpForce: nextJumpForce, gravity: gravityMagnitude });
     jumpForce = jumpSettings.jumpForce;
-    gravity = -Math.abs(jumpSettings.gravity);
+    gravity = -jumpSettings.gravity;
     persistJumpSettings(jumpSettings);
     if (saveJumpButton) {
         const original = saveJumpButton.textContent;
