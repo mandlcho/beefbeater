@@ -342,6 +342,7 @@ for (let i = 0; i < 16; i += 1) {
 
 const playerInput = { forward: false, backward: false, left: false, right: false, boost: false };
 let movementState = 'idle';
+let movementMode = 'run';
 
 function setMovementState(nextState) {
     const changed = movementState !== nextState;
@@ -386,6 +387,9 @@ function handleKeyChange(key, value) {
         case 'r':
             if (value) resetGame();
             break;
+        case 'c':
+            if (value) toggleMovementMode();
+            break;
         default:
             handled = false;
     }
@@ -424,6 +428,11 @@ function showAttackFeedback(key) {
     attackFeedbackTimeouts[key] = setTimeout(() => {
         indicator.classList.remove('combo-chip--active');
     }, 350);
+}
+
+function toggleMovementMode() {
+    movementMode = movementMode === 'run' ? 'walk' : 'run';
+    console.log(`Movement mode: ${movementMode}`);
 }
 
 window.addEventListener('keydown', (event) => {
@@ -597,6 +606,7 @@ function resetGame() {
     player.position.set(0, PLAYER_BASE_HEIGHT, 0);
     playerVelocity.set(0, 0, 0);
     playerState.isGrounded = true;
+    movementMode = 'run';
     cameraState.manual.set(0, 0, 0);
     cameraState.offset.set(cameraSettings.offsetX, cameraSettings.offsetY, cameraSettings.offsetZ);
     camera.position.set(cameraSettings.offsetX, cameraSettings.offsetY, cameraSettings.offsetZ);
@@ -612,13 +622,14 @@ function updatePlayer(delta) {
     let state = 'idle';
     if (move.lengthSq() > 0) {
         move.normalize();
-        state = playerInput.boost ? 'running' : 'walking';
+        state = playerInput.boost || movementMode === 'run' ? 'running' : 'walking';
     }
     if (!playerState.isGrounded && state === 'idle') {
         state = movementState;
     }
     setMovementState(state);
-    const baseSpeed = playerInput.boost ? movementSettings.runSpeed : movementSettings.walkSpeed;
+    const modeSpeed = movementMode === 'run' ? movementSettings.runSpeed : movementSettings.walkSpeed;
+    const baseSpeed = playerInput.boost ? movementSettings.runSpeed : modeSpeed;
     move.multiplyScalar(baseSpeed * delta);
     player.position.add(move);
     player.position.x = THREE.MathUtils.clamp(player.position.x, -playArea, playArea);
