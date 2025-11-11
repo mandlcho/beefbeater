@@ -438,6 +438,11 @@ function handleKeyChange(key, value) {
     return handled;
 }
 
+function isSpaceInput(event) {
+    const key = (event.key || '').toLowerCase();
+    return event.code === 'Space' || key === ' ' || key === 'spacebar';
+}
+
 function attemptJump() {
     if (!isGameActive || !playerState.isGrounded) return;
     playerVelocity.y = jumpForce;
@@ -478,8 +483,8 @@ function toggleMovementMode() {
 }
 
 window.addEventListener('keydown', (event) => {
-    const key = event.key.toLowerCase();
-    if (event.code === 'Space') {
+    const key = (event.key || '').toLowerCase();
+    if (isSpaceInput(event)) {
         attemptJump();
         event.preventDefault();
         return;
@@ -494,8 +499,8 @@ window.addEventListener('keydown', (event) => {
 });
 
 window.addEventListener('keyup', (event) => {
-    const key = event.key.toLowerCase();
-    if (event.code === 'Space') {
+    const key = (event.key || '').toLowerCase();
+    if (isSpaceInput(event)) {
         event.preventDefault();
         return;
     }
