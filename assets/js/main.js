@@ -150,6 +150,7 @@ const PLAYER_MODEL_PATH = 'assets/rawdata/mesh/character_Mesh.fbx';
 const playerAnimationLoader = new FBXLoader();
 const PLAYER_ANIMATION_PATHS = {
     idle: 'assets/rawdata/animations/BEEFBEATER_TBONE2_Idle.fbx',
+    walk: 'assets/rawdata/animations/BEEFBEATER_TBONE2_Walk.fbx',
     run: 'assets/rawdata/animations/BEEFBEATER_TBONE2_Run.fbx',
 };
 let playerMixer = null;
@@ -202,7 +203,12 @@ function playPlayerAnimation(key) {
 
 function updateMovementAnimation(state) {
     if (!playerMixer) return;
-    const animationKey = state === 'idle' ? 'idle' : 'run';
+    let animationKey = 'idle';
+    if (state === 'walking') {
+        animationKey = 'walk';
+    } else if (state === 'running') {
+        animationKey = 'run';
+    }
     playPlayerAnimation(animationKey);
 }
 
