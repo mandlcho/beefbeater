@@ -412,7 +412,18 @@ function handleAttackInput(key) {
     };
     if (attackMap[key]) {
         console.log(`[Attack] ${attackMap[key]} attack triggered`);
+        showAttackFeedback(key);
     }
+}
+
+function showAttackFeedback(key) {
+    const indicator = attackIndicators[key];
+    if (!indicator) return;
+    indicator.classList.add('combo-chip--active');
+    clearTimeout(attackFeedbackTimeouts[key]);
+    attackFeedbackTimeouts[key] = setTimeout(() => {
+        indicator.classList.remove('combo-chip--active');
+    }, 350);
 }
 
 window.addEventListener('keydown', (event) => {
@@ -460,6 +471,12 @@ const movementForm = document.getElementById('movement-form');
 const saveMovementButton = document.getElementById('save-movement');
 const startScreen = document.querySelector('[data-start-screen]');
 const startButton = document.querySelector('[data-start-button]');
+const attackKeyElements = document.querySelectorAll('[data-attack-key]');
+const attackIndicators = {};
+attackKeyElements.forEach((element) => {
+    attackIndicators[element.dataset.attackKey] = element;
+});
+const attackFeedbackTimeouts = {};
 
 let isGameActive = false;
 
