@@ -78,6 +78,20 @@
             </div>
             <button type="button" class="btn primary full-width" id="save-movement">Save Movement</button>
         </form>
+        <form id="jump-form" class="control-panel__body control-panel__body--divider">
+            <div class="control-panel__section-title">Jump Settings</div>
+            <div class="form-grid">
+                <label class="field">
+                    <span>Jump Force</span>
+                    <input type="number" name="jumpForce" step="0.5" min="0" required />
+                </label>
+                <label class="field">
+                    <span>Gravity</span>
+                    <input type="number" name="gravity" step="0.5" min="0" required />
+                </label>
+            </div>
+            <button type="button" class="btn primary full-width" id="save-jump">Save Jump</button>
+        </form>
     </aside>
     <div class="hud-floating" data-game-ui>
         <div class="hud-floating__stats">

@@ -140,7 +140,7 @@ body[data-game-state='playing'] .start-screen {
 
 .control-panel__tab--active {
     color: var(--text);
-    border-bottom: 2px solid var(--accent);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.25);
 }
 
 .control-panel__body {

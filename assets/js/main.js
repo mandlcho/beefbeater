@@ -13,12 +13,16 @@ const defaultCameraSettings = {
     maxHeight: 24,
     panSpeed: 18,
 };
+const MOVEMENT_SETTINGS_STORAGE_KEY = 'beefbeaterMovementSettings';
+const JUMP_SETTINGS_STORAGE_KEY = 'beefbeaterJumpSettings';
 const defaultMovementSettings = {
     walkSpeed: 8,
     runSpeed: 15,
 };
-const GRAVITY = -32;
-const JUMP_FORCE = 16;
+const defaultJumpSettings = {
+    jumpForce: 16,
+    gravity: 32,
+};
 
 function loadCameraSettings() {
     try {
@@ -58,8 +62,30 @@ function persistMovementSettings(settings) {
     }
 }
 
+function loadJumpSettings() {
+    try {
+        const stored = localStorage.getItem(JUMP_SETTINGS_STORAGE_KEY);
+        if (!stored) return { ...defaultJumpSettings };
+        return { ...defaultJumpSettings, ...JSON.parse(stored) };
+    } catch (error) {
+        console.warn('Unable to load jump settings; using defaults.', error);
+        return { ...defaultJumpSettings };
+    }
+}
+
+function persistJumpSettings(settings) {
+    try {
+        localStorage.setItem(JUMP_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    } catch (error) {
+        console.warn('Unable to save jump settings.', error);
+    }
+}
+
 let cameraSettings = loadCameraSettings();
 let movementSettings = loadMovementSettings();
+let jumpSettings = loadJumpSettings();
+let gravity = -Math.abs(jumpSettings.gravity);
+let jumpForce = jumpSettings.jumpForce;
 
 const playArea = 70;
 
@@ -398,7 +424,7 @@ function handleKeyChange(key, value) {
 
 function attemptJump() {
     if (!isGameActive || !playerState.isGrounded) return;
-    playerVelocity.y = JUMP_FORCE;
+    playerVelocity.y = jumpForce;
     playerState.isGrounded = false;
     playJumpAnimation();
 }
@@ -478,6 +504,8 @@ const cameraForm = document.getElementById('camera-form');
 const saveSettingsButton = document.getElementById('save-settings');
 const movementForm = document.getElementById('movement-form');
 const saveMovementButton = document.getElementById('save-movement');
+const jumpForm = document.getElementById('jump-form');
+const saveJumpButton = document.getElementById('save-jump');
 const startScreen = document.querySelector('[data-start-screen]');
 const startButton = document.querySelector('[data-start-button]');
 const attackKeyElements = document.querySelectorAll('[data-attack-key]');
@@ -526,6 +554,19 @@ function populateMovementForm() {
     Object.entries(mapping).forEach(([field, value]) => {
         if (movementForm.elements[field]) {
             movementForm.elements[field].value = value;
+        }
+    });
+}
+
+function populateJumpForm() {
+    if (!jumpForm) return;
+    const mapping = {
+        jumpForce: jumpSettings.jumpForce,
+        gravity: jumpSettings.gravity,
+    };
+    Object.entries(mapping).forEach(([field, value]) => {
+        if (jumpForm.elements[field]) {
+            jumpForm.elements[field].value = value;
         }
     });
 }
@@ -596,6 +637,31 @@ if (saveMovementButton) {
     saveMovementButton.addEventListener('click', handleSaveMovement);
 }
 
+let saveJumpFeedbackTimeout;
+function handleSaveJump() {
+    if (!jumpForm) return;
+    const formData = new FormData(jumpForm);
+    const nextJumpForce = Math.max(0.1, toNumber(formData.get('jumpForce'), jumpSettings.jumpForce));
+    const gravityMagnitude = Math.max(0.1, toNumber(formData.get('gravity'), jumpSettings.gravity));
+    jumpSettings = { jumpForce: nextJumpForce, gravity: gravityMagnitude };
+    jumpForce = jumpSettings.jumpForce;
+    gravity = -Math.abs(jumpSettings.gravity);
+    persistJumpSettings(jumpSettings);
+    if (saveJumpButton) {
+        const original = saveJumpButton.textContent;
+        saveJumpButton.textContent = 'Saved!';
+        clearTimeout(saveJumpFeedbackTimeout);
+        saveJumpFeedbackTimeout = setTimeout(() => {
+            saveJumpButton.textContent = original;
+        }, 1400);
+    }
+}
+
+populateJumpForm();
+if (saveJumpButton) {
+    saveJumpButton.addEventListener('click', handleSaveJump);
+}
+
 function updateUI() {
     scoreEl.textContent = Math.round(state.score);
     bestEl.textContent = Math.round(state.best);
@@ -639,7 +705,7 @@ function updatePlayer(delta) {
         player.rotation.y = Math.atan2(move.x, move.z);
     }
 
-    playerVelocity.y += GRAVITY * delta;
+    playerVelocity.y += gravity * delta;
     player.position.y += playerVelocity.y * delta;
     if (player.position.y <= PLAYER_BASE_HEIGHT) {
         player.position.y = PLAYER_BASE_HEIGHT;
