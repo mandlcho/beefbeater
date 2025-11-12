@@ -602,8 +602,59 @@ function engageEnemiesInRange(radius, stunDuration) {
     }
 }
 
+function autoTargetNearestEnemyForAttack(key) {
+    const attack = ATTACK_DEFINITIONS[key];
+    if (!attack) return false;
+    let closestIndex = -1;
+    let closestDistance = Infinity;
+    const maxDistance = attack.engageRadius + ENEMY_COLLISION_RADIUS;
+    for (let index = 0; index < herd.length; index += 1) {
+        const cow = herd[index];
+        const state = herdState[index];
+        if (!cow || !state || state.health <= 0) continue;
+        const distance = cow.position.distanceTo(player.position);
+        if (distance <= maxDistance && distance < closestDistance) {
+            closestIndex = index;
+            closestDistance = distance;
+        }
+    }
+    if (closestIndex === -1) {
+        return false;
+    }
+    const targetCow = herd[closestIndex];
+    const toEnemy = targetCow.position.clone().sub(player.position);
+    toEnemy.y = 0;
+    const currentDistance = toEnemy.length();
+    if (currentDistance === 0) {
+        return true;
+    }
+    const direction = toEnemy.clone().normalize();
+    const desiredSpacing = Math.max(ENEMY_COLLISION_RADIUS + PLAYER_COLLISION_RADIUS, attack.range * 0.6);
+    if (currentDistance > desiredSpacing + 0.05) {
+        const snappedPosition = targetCow.position.clone().addScaledVector(direction, -desiredSpacing);
+        snappedPosition.y = player.position.y;
+        snappedPosition.x = THREE.MathUtils.clamp(snappedPosition.x, -playArea, playArea);
+        snappedPosition.z = THREE.MathUtils.clamp(snappedPosition.z, -playArea, playArea);
+        player.position.x = snappedPosition.x;
+        player.position.z = snappedPosition.z;
+    }
+    const finalDirection = targetCow.position.clone().sub(player.position);
+    finalDirection.y = 0;
+    if (finalDirection.lengthSq() > 0) {
+        player.rotation.y = Math.atan2(finalDirection.x, finalDirection.z);
+    }
+    playerShadow.position.x = player.position.x;
+    playerShadow.position.z = player.position.z;
+    return true;
+}
+
 function handleAttackInput(key) {
     if (!isGameActive) return;
+    const attack = ATTACK_DEFINITIONS[key];
+    if (!attack) return;
+    if (!playerState.attack && playerState.stamina >= attack.staminaCost) {
+        autoTargetNearestEnemyForAttack(key);
+    }
     showAttackFeedback(key);
     const started = startPlayerAttack(key);
     if (started) {
