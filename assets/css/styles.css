@@ -297,10 +297,6 @@ body[data-game-state='playing'] .start-screen {
     background: linear-gradient(90deg, #6cf2ff, #4ac7e3);
 }
 
-.hud-meter__fill--enemy {
-    background: linear-gradient(90deg, #ffafcc, #c850c0);
-}
-
 .hud-floating__actions {
     display: flex;
     gap: 0.6rem;
@@ -377,6 +373,35 @@ body[data-game-state='playing'] .start-screen {
     border-color: rgba(255, 255, 255, 0.6);
     background: rgba(255, 255, 255, 0.12);
     box-shadow: 0 0 12px rgba(255, 255, 255, 0.25);
+}
+
+.enemy-label-layer {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    font-family: var(--font);
+}
+
+.enemy-label {
+    position: absolute;
+    transform: translate(-50%, -100%);
+    padding: 0.2rem 0.45rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(5, 5, 5, 0.65);
+    color: var(--text);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    white-space: nowrap;
+}
+
+.enemy-label.is-hidden {
+    opacity: 0;
+    transform: translate(-50%, -100%) scale(0.9);
 }
 
 @media (max-width: 640px) {

@@ -438,6 +438,11 @@ for (let i = 0; i < 16; i += 1) {
 const ENEMY_COUNT = 8;
 const herd = [];
 const herdState = [];
+const enemyLabelLayer = document.createElement('div');
+enemyLabelLayer.className = 'enemy-label-layer';
+document.body.appendChild(enemyLabelLayer);
+const enemyLabels = [];
+const enemyLabelVector = new THREE.Vector3();
 const enemyGeo = new THREE.BoxGeometry(1.4, 1, 2);
 const enemyMat = new THREE.MeshStandardMaterial({ color: 0xb08c5a, roughness: 0.7, metalness: 0.1 });
 let enemyIdCounter = 0;
@@ -474,7 +479,7 @@ function spawnCow() {
     cow.userData.enemyId = enemyIdCounter;
     enemyIdCounter += 1;
     herd.push(cow);
-    herdState.push({
+    const state = {
         id: cow.userData.enemyId,
         mode: 'graze',
         timer: randomRange(1.5, 3.5),
@@ -484,8 +489,14 @@ function spawnCow() {
         maxHealth: ENEMY_MAX_HEALTH,
         stunTimer: 0,
         playerHitCooldown: 0,
-    });
+    };
+    herdState.push(state);
     scene.add(cow);
+    const label = document.createElement('div');
+    label.className = 'enemy-label is-hidden';
+    label.textContent = `${state.health}/${state.maxHealth}`;
+    enemyLabelLayer.appendChild(label);
+    enemyLabels.push(label);
 }
 
 for (let i = 0; i < ENEMY_COUNT; i += 1) {
@@ -672,8 +683,6 @@ const playerHealthValue = document.querySelector('[data-player-health]');
 const playerHealthFill = document.querySelector('[data-player-health-fill]');
 const playerStaminaValue = document.querySelector('[data-player-stamina]');
 const playerStaminaFill = document.querySelector('[data-player-stamina-fill]');
-const enemyHealthValue = document.querySelector('[data-enemy-health]');
-const enemyHealthFill = document.querySelector('[data-enemy-health-fill]');
 
 let isGameActive = false;
 
@@ -828,20 +837,43 @@ function updateUI() {
     updateVitalsUI();
 }
 
-function getClosestEnemyIndex() {
-    let closestIndex = null;
-    let nearestDistance = Infinity;
+function updateEnemyLabels() {
+    if (!enemyLabelLayer) return;
+    if (!isGameActive) {
+        enemyLabels.forEach((label) => label.classList.add('is-hidden'));
+        return;
+    }
+    const width = window.innerWidth;
+    const height = window.innerHeight;
     for (let index = 0; index < herd.length; index += 1) {
         const cow = herd[index];
         const state = herdState[index];
-        if (!cow || !state || state.health <= 0) continue;
-        const distance = cow.position.distanceTo(player.position);
-        if (distance < nearestDistance) {
-            nearestDistance = distance;
-            closestIndex = index;
+        const label = enemyLabels[index];
+        if (!cow || !state || !label) continue;
+        if (state.health <= 0 || !cow.visible) {
+            label.classList.add('is-hidden');
+            continue;
         }
+        enemyLabelVector.copy(cow.position);
+        enemyLabelVector.y += 1.6;
+        enemyLabelVector.project(camera);
+        const offscreen =
+            enemyLabelVector.x < -1 ||
+            enemyLabelVector.x > 1 ||
+            enemyLabelVector.y < -1 ||
+            enemyLabelVector.y > 1 ||
+            enemyLabelVector.z < -1 ||
+            enemyLabelVector.z > 1;
+        if (offscreen) {
+            label.classList.add('is-hidden');
+            continue;
+        }
+        const screenX = (enemyLabelVector.x * 0.5 + 0.5) * width;
+        const screenY = (-enemyLabelVector.y * 0.5 + 0.5) * height;
+        label.style.transform = `translate(-50%, -100%) translate(${screenX}px, ${screenY}px)`;
+        label.textContent = `${Math.round(state.health)}/${state.maxHealth}`;
+        label.classList.remove('is-hidden');
     }
-    return closestIndex;
 }
 
 function updateVitalsUI() {
@@ -858,16 +890,6 @@ function updateVitalsUI() {
     if (playerStaminaFill) {
         const pct = (playerState.stamina / PLAYER_MAX_STAMINA) * 100;
         playerStaminaFill.style.width = `${THREE.MathUtils.clamp(pct, 0, 100)}%`;
-    }
-    const enemyIndex = getClosestEnemyIndex();
-    if (enemyIndex !== null && enemyHealthValue && enemyHealthFill) {
-        const enemyState = herdState[enemyIndex];
-        const pct = (enemyState.health / enemyState.maxHealth) * 100;
-        enemyHealthValue.textContent = Math.round(enemyState.health);
-        enemyHealthFill.style.width = `${THREE.MathUtils.clamp(pct, 0, 100)}%`;
-    } else {
-        if (enemyHealthValue) enemyHealthValue.textContent = '--';
-        if (enemyHealthFill) enemyHealthFill.style.width = '0%';
     }
 }
 
@@ -896,6 +918,10 @@ function resetGame() {
         state.mode = 'graze';
         state.timer = randomRange(1.5, 3.5);
         state.target = pickWanderPosition();
+        const label = enemyLabels[i];
+        if (label) {
+            label.classList.add('is-hidden');
+        }
     }
     updateUI();
 }
@@ -1078,6 +1104,10 @@ function applyEnemyDamage(index, amount) {
     if (state.health <= 0) {
         state.mode = 'down';
         cow.visible = false;
+        const label = enemyLabels[index];
+        if (label) {
+            label.classList.add('is-hidden');
+        }
         console.log(`[Enemy] Enemy ${state.id} defeated`);
     }
 }
@@ -1149,6 +1179,7 @@ function animate() {
     updateNodes(delta);
     updateHerd(delta);
     updateCombat(delta);
+    updateEnemyLabels();
     if (playerMixer) {
         playerMixer.update(delta);
     }
