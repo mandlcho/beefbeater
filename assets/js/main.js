@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
+import { SkeletonUtils } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 const SETTINGS_STORAGE_KEY = 'beefbeaterCameraSettings';
 const MOVEMENT_SETTINGS_STORAGE_KEY = 'beefbeaterMovementSettings';
@@ -154,7 +155,9 @@ const container = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
-container.appendChild(renderer.domElement);
+const playfieldCanvas = renderer.domElement;
+playfieldCanvas.dataset.sceneCanvas = 'playfield';
+container.appendChild(playfieldCanvas);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xcfe0ff);
@@ -411,6 +414,20 @@ playerShadow.rotation.x = -Math.PI / 2;
 playerShadow.position.y = 0.01;
 scene.add(playerShadow);
 
+const clickMoveState = {
+    active: false,
+    target: new THREE.Vector3(),
+    tolerance: 0.35,
+};
+const clickMovePointer = new THREE.Vector2();
+const clickMoveIntersection = new THREE.Vector3();
+const clickMoveRaycaster = new THREE.Raycaster();
+const clickMovePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -PLAYER_BASE_HEIGHT);
+const clickMoveDirection = new THREE.Vector3();
+const keyboardMoveDirection = new THREE.Vector3();
+const playerMoveVector = new THREE.Vector3();
+const movementFacing = new THREE.Vector3();
+
 const nodes = [];
 const nodeGeo = new THREE.SphereGeometry(0.75, 16, 16);
 function randomRange(min, max) {
@@ -462,7 +479,7 @@ function createEnemyVisual() {
     if (!enemyMeshTemplate) {
         return createEnemyPlaceholder();
     }
-    const visual = enemyMeshTemplate.clone(true);
+    const visual = SkeletonUtils.clone(enemyMeshTemplate);
     visual.traverse((child) => {
         if (child.isMesh) {
             child.castShadow = true;
@@ -568,6 +585,32 @@ for (let i = 0; i < ENEMY_COUNT; i += 1) {
     spawnCow();
 }
 
+function cancelClickMove() {
+    clickMoveState.active = false;
+}
+
+function setClickMoveTarget(point) {
+    clickMoveState.target.copy(point);
+    clickMoveState.target.y = PLAYER_BASE_HEIGHT;
+    clickMoveState.active = true;
+}
+
+function handleScenePointerDown(event) {
+    if (!isGameActive) return;
+    if (event.button !== 0) return;
+    const rect = playfieldCanvas.getBoundingClientRect();
+    clickMovePointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    clickMovePointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    clickMoveRaycaster.setFromCamera(clickMovePointer, camera);
+    const intersection = clickMoveRaycaster.ray.intersectPlane(clickMovePlane, clickMoveIntersection);
+    if (!intersection) return;
+    clickMoveIntersection.x = THREE.MathUtils.clamp(clickMoveIntersection.x, -playArea, playArea);
+    clickMoveIntersection.z = THREE.MathUtils.clamp(clickMoveIntersection.z, -playArea, playArea);
+    clickMoveIntersection.y = PLAYER_BASE_HEIGHT;
+    setClickMoveTarget(clickMoveIntersection);
+    event.preventDefault();
+}
+
 const playerInput = { forward: false, backward: false, left: false, right: false, boost: false };
 let movementState = 'idle';
 let movementMode = 'run';
@@ -587,15 +630,19 @@ function handleKeyChange(key, value) {
     switch (key) {
         case 'w':
             playerInput.forward = value;
+            if (value) cancelClickMove();
             break;
         case 's':
             playerInput.backward = value;
+            if (value) cancelClickMove();
             break;
         case 'a':
             playerInput.left = value;
+            if (value) cancelClickMove();
             break;
         case 'd':
             playerInput.right = value;
+            if (value) cancelClickMove();
             break;
         case 'shift':
             playerInput.boost = value;
@@ -767,6 +814,8 @@ window.addEventListener('keyup', (event) => {
     const handled = handleKeyChange(key, false);
     if (handled) event.preventDefault();
 });
+
+playfieldCanvas.addEventListener('pointerdown', handleScenePointerDown);
 
 window.addEventListener(
     'wheel',
@@ -1011,6 +1060,7 @@ function updateVitalsUI() {
 
 function resetGame() {
     state.score = 0;
+    cancelClickMove();
     player.position.set(0, PLAYER_BASE_HEIGHT, 0);
     playerVelocity.set(0, 0, 0);
     playerState.isGrounded = true;
@@ -1043,29 +1093,53 @@ function resetGame() {
 }
 
 function updatePlayer(delta) {
-    const move = new THREE.Vector3();
-    if (playerInput.forward) move.z -= 1;
-    if (playerInput.backward) move.z += 1;
-    if (playerInput.left) move.x -= 1;
-    if (playerInput.right) move.x += 1;
+    playerMoveVector.set(0, 0, 0);
+    keyboardMoveDirection.set(0, 0, 0);
+    movementFacing.set(0, 0, 0);
+
+    if (playerInput.forward) keyboardMoveDirection.z -= 1;
+    if (playerInput.backward) keyboardMoveDirection.z += 1;
+    if (playerInput.left) keyboardMoveDirection.x -= 1;
+    if (playerInput.right) keyboardMoveDirection.x += 1;
+
     let state = 'idle';
-    if (move.lengthSq() > 0) {
-        move.normalize();
+    let appliedMovement = false;
+
+    if (keyboardMoveDirection.lengthSq() > 0) {
+        keyboardMoveDirection.normalize();
+        movementFacing.copy(keyboardMoveDirection);
         state = playerInput.boost || movementMode === 'run' ? 'running' : 'walking';
+        const modeSpeed = movementMode === 'run' ? movementSettings.runSpeed : movementSettings.walkSpeed;
+        const baseSpeed = playerInput.boost ? movementSettings.runSpeed : modeSpeed;
+        playerMoveVector.copy(keyboardMoveDirection).multiplyScalar(baseSpeed * delta);
+        appliedMovement = true;
+    } else if (clickMoveState.active) {
+        clickMoveDirection.copy(clickMoveState.target).sub(player.position);
+        clickMoveDirection.y = 0;
+        const distance = clickMoveDirection.length();
+        if (distance <= clickMoveState.tolerance) {
+            cancelClickMove();
+        } else {
+            clickMoveDirection.normalize();
+            movementFacing.copy(clickMoveDirection);
+            playerMoveVector.copy(clickMoveDirection).multiplyScalar(movementSettings.runSpeed * delta);
+            state = 'running';
+            appliedMovement = true;
+        }
     }
+
     if (!playerState.isGrounded && state === 'idle') {
         state = movementState;
     }
     setMovementState(state);
-    const modeSpeed = movementMode === 'run' ? movementSettings.runSpeed : movementSettings.walkSpeed;
-    const baseSpeed = playerInput.boost ? movementSettings.runSpeed : modeSpeed;
-    move.multiplyScalar(baseSpeed * delta);
-    player.position.add(move);
-    player.position.x = THREE.MathUtils.clamp(player.position.x, -playArea, playArea);
-    player.position.z = THREE.MathUtils.clamp(player.position.z, -playArea, playArea);
 
-    if (move.lengthSq() > 0) {
-        player.rotation.y = Math.atan2(move.x, move.z);
+    if (appliedMovement) {
+        player.position.add(playerMoveVector);
+        player.position.x = THREE.MathUtils.clamp(player.position.x, -playArea, playArea);
+        player.position.z = THREE.MathUtils.clamp(player.position.z, -playArea, playArea);
+        if (movementFacing.lengthSq() > 0) {
+            player.rotation.y = Math.atan2(movementFacing.x, movementFacing.z);
+        }
     }
 
     playerVelocity.y += gravity * delta;
