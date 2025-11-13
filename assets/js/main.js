@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
-import { SkeletonUtils } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { clone as cloneSkinnedMesh } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 const SETTINGS_STORAGE_KEY = 'beefbeaterCameraSettings';
 const MOVEMENT_SETTINGS_STORAGE_KEY = 'beefbeaterMovementSettings';
@@ -479,7 +479,7 @@ function createEnemyVisual() {
     if (!enemyMeshTemplate) {
         return createEnemyPlaceholder();
     }
-    const visual = SkeletonUtils.clone(enemyMeshTemplate);
+    const visual = cloneSkinnedMesh(enemyMeshTemplate);
     visual.traverse((child) => {
         if (child.isMesh) {
             child.castShadow = true;
