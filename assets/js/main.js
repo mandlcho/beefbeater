@@ -314,7 +314,7 @@ let playerMixer = null;
 const playerActions = {};
 let activeAnimationKey = null;
 
-function normalizePlayerModel(model) {
+function normalizeModelToGround(model) {
     const centeredBox = new THREE.Box3().setFromObject(model);
     const center = centeredBox.getCenter(new THREE.Vector3());
     model.position.sub(center);
@@ -374,7 +374,7 @@ function loadPlayerMesh() {
         PLAYER_MODEL_PATH,
         (fbx) => {
             fbx.scale.setScalar(0.01);
-            normalizePlayerModel(fbx);
+            normalizeModelToGround(fbx);
             fbx.position.y -= PLAYER_BASE_HEIGHT;
             fbx.traverse((child) => {
                 if (child.isMesh) {
@@ -443,9 +443,75 @@ enemyLabelLayer.className = 'enemy-label-layer';
 document.body.appendChild(enemyLabelLayer);
 const enemyLabels = [];
 const enemyLabelVector = new THREE.Vector3();
-const enemyGeo = new THREE.BoxGeometry(1.4, 1, 2);
-const enemyMat = new THREE.MeshStandardMaterial({ color: 0xb08c5a, roughness: 0.7, metalness: 0.1 });
+const enemyPlaceholderGeo = new THREE.BoxGeometry(1.4, 1, 2);
+const enemyPlaceholderMat = new THREE.MeshStandardMaterial({ color: 0xb08c5a, roughness: 0.7, metalness: 0.1 });
+const enemyModelLoader = new FBXLoader();
+const ENEMY_MODEL_PATH = 'assets/rawdata/mesh/enemy_character_Mesh.fbx';
+let enemyMeshTemplate = null;
 let enemyIdCounter = 0;
+
+function createEnemyPlaceholder() {
+    const placeholder = new THREE.Mesh(enemyPlaceholderGeo, enemyPlaceholderMat.clone());
+    placeholder.position.y -= PLAYER_BASE_HEIGHT;
+    placeholder.castShadow = true;
+    placeholder.receiveShadow = true;
+    return placeholder;
+}
+
+function createEnemyVisual() {
+    if (!enemyMeshTemplate) {
+        return createEnemyPlaceholder();
+    }
+    const visual = enemyMeshTemplate.clone(true);
+    visual.traverse((child) => {
+        if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            if (child.material) {
+                if (Array.isArray(child.material)) {
+                    child.material = child.material.map((mat) => (mat && mat.isMaterial ? mat.clone() : mat));
+                } else if (child.material.isMaterial) {
+                    child.material = child.material.clone();
+                }
+            }
+        }
+    });
+    return visual;
+}
+
+function attachEnemyVisual(cow) {
+    if (cow.userData.visual) {
+        cow.remove(cow.userData.visual);
+    }
+    const visual = createEnemyVisual();
+    cow.add(visual);
+    cow.userData.visual = visual;
+}
+
+function loadEnemyMeshTemplate() {
+    enemyModelLoader.load(
+        ENEMY_MODEL_PATH,
+        (fbx) => {
+            fbx.scale.setScalar(0.01);
+            normalizeModelToGround(fbx);
+            fbx.position.y -= PLAYER_BASE_HEIGHT;
+            fbx.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+            enemyMeshTemplate = fbx;
+            herd.forEach((cow) => attachEnemyVisual(cow));
+        },
+        undefined,
+        (error) => {
+            console.error('Failed to load enemy mesh.', error);
+        },
+    );
+}
+
+loadEnemyMeshTemplate();
 
 function isPositionBlocked(position) {
     return treeObstacles.some((tree) => {
@@ -472,12 +538,11 @@ function pickWanderPosition() {
 
 function spawnCow() {
     const spawnPos = pickWanderPosition();
-    const cow = new THREE.Mesh(enemyGeo, enemyMat.clone());
+    const cow = new THREE.Group();
     cow.position.copy(spawnPos);
-    cow.castShadow = true;
-    cow.receiveShadow = true;
     cow.userData.enemyId = enemyIdCounter;
     enemyIdCounter += 1;
+    attachEnemyVisual(cow);
     herd.push(cow);
     const state = {
         id: cow.userData.enemyId,
