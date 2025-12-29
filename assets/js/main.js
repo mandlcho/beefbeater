@@ -34,6 +34,14 @@ const PLAYER_COLLISION_COOLDOWN = 0.75;
 const ENEMY_MAX_HEALTH = 80;
 const ENEMY_COLLISION_RADIUS = 1.2;
 
+// Game state constants
+const GAME_STATE = {
+    MENU: 'menu',
+    PLAYING: 'playing',
+    GAME_OVER: 'gameover',
+    VICTORY: 'victory',
+};
+
 const ATTACK_DEFINITIONS = {
     j: {
         name: 'Light',
@@ -149,6 +157,11 @@ let gravity = -jumpSettings.gravity;
 let jumpForce = jumpSettings.jumpForce;
 
 const playArea = 70;
+
+// Pre-allocated vectors for performance (avoid GC pressure)
+const _tempVec1 = new THREE.Vector3();
+const _tempVec2 = new THREE.Vector3();
+const _tempVec3 = new THREE.Vector3();
 
 const container = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
@@ -472,7 +485,7 @@ function pickWanderPosition() {
 
 function spawnCow() {
     const spawnPos = pickWanderPosition();
-    const cow = new THREE.Mesh(enemyGeo, enemyMat.clone());
+    const cow = new THREE.Mesh(enemyGeo, enemyMat);
     cow.position.copy(spawnPos);
     cow.castShadow = true;
     cow.receiveShadow = true;
@@ -489,6 +502,7 @@ function spawnCow() {
         maxHealth: ENEMY_MAX_HEALTH,
         stunTimer: 0,
         playerHitCooldown: 0,
+        healthChanged: true,
     };
     herdState.push(state);
     scene.add(cow);
@@ -517,7 +531,18 @@ function setMovementState(nextState) {
 }
 
 function handleKeyChange(key, value) {
+    // Allow restart from any state
+    if (key === 'r' && value) {
+        if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.VICTORY) {
+            restartFromEndState();
+        } else if (isGameActive) {
+            resetGame();
+        }
+        return true;
+    }
+
     if (!isGameActive) return false;
+
     let handled = true;
     switch (key) {
         case 'w':
@@ -546,9 +571,6 @@ function handleKeyChange(key, value) {
             break;
         case 'arrowright':
             cameraInput.right = value;
-            break;
-        case 'r':
-            if (value) resetGame();
             break;
         case 'c':
             if (value) toggleMovementMode();
@@ -590,12 +612,13 @@ function startPlayerAttack(key) {
 }
 
 function engageEnemiesInRange(radius, stunDuration) {
+    const radiusSq = radius * radius;
     for (let index = 0; index < herd.length; index += 1) {
         const cow = herd[index];
         const state = herdState[index];
         if (!cow || !state || state.health <= 0) continue;
-        const distance = cow.position.distanceTo(player.position);
-        if (distance <= radius) {
+        const distanceSq = cow.position.distanceToSquared(player.position);
+        if (distanceSq <= radiusSq) {
             state.stunTimer = Math.max(state.stunTimer, stunDuration);
             state.mode = 'stunned';
         }
@@ -606,42 +629,43 @@ function autoTargetNearestEnemyForAttack(key) {
     const attack = ATTACK_DEFINITIONS[key];
     if (!attack) return false;
     let closestIndex = -1;
-    let closestDistance = Infinity;
+    let closestDistanceSq = Infinity;
     const maxDistance = attack.engageRadius + ENEMY_COLLISION_RADIUS;
+    const maxDistanceSq = maxDistance * maxDistance;
     for (let index = 0; index < herd.length; index += 1) {
         const cow = herd[index];
         const state = herdState[index];
         if (!cow || !state || state.health <= 0) continue;
-        const distance = cow.position.distanceTo(player.position);
-        if (distance <= maxDistance && distance < closestDistance) {
+        const distanceSq = cow.position.distanceToSquared(player.position);
+        if (distanceSq <= maxDistanceSq && distanceSq < closestDistanceSq) {
             closestIndex = index;
-            closestDistance = distance;
+            closestDistanceSq = distanceSq;
         }
     }
     if (closestIndex === -1) {
         return false;
     }
     const targetCow = herd[closestIndex];
-    const toEnemy = targetCow.position.clone().sub(player.position);
-    toEnemy.y = 0;
-    const currentDistance = toEnemy.length();
+    _tempVec2.copy(targetCow.position).sub(player.position);
+    _tempVec2.y = 0;
+    const currentDistance = _tempVec2.length();
     if (currentDistance === 0) {
         return true;
     }
-    const direction = toEnemy.clone().normalize();
+    _tempVec3.copy(_tempVec2).normalize();
     const desiredSpacing = Math.max(ENEMY_COLLISION_RADIUS + PLAYER_COLLISION_RADIUS, attack.range * 0.6);
     if (currentDistance > desiredSpacing + 0.05) {
-        const snappedPosition = targetCow.position.clone().addScaledVector(direction, -desiredSpacing);
-        snappedPosition.y = player.position.y;
-        snappedPosition.x = THREE.MathUtils.clamp(snappedPosition.x, -playArea, playArea);
-        snappedPosition.z = THREE.MathUtils.clamp(snappedPosition.z, -playArea, playArea);
-        player.position.x = snappedPosition.x;
-        player.position.z = snappedPosition.z;
+        _tempVec1.copy(targetCow.position).addScaledVector(_tempVec3, -desiredSpacing);
+        _tempVec1.y = player.position.y;
+        _tempVec1.x = THREE.MathUtils.clamp(_tempVec1.x, -playArea, playArea);
+        _tempVec1.z = THREE.MathUtils.clamp(_tempVec1.z, -playArea, playArea);
+        player.position.x = _tempVec1.x;
+        player.position.z = _tempVec1.z;
     }
-    const finalDirection = targetCow.position.clone().sub(player.position);
-    finalDirection.y = 0;
-    if (finalDirection.lengthSq() > 0) {
-        player.rotation.y = Math.atan2(finalDirection.x, finalDirection.z);
+    _tempVec2.copy(targetCow.position).sub(player.position);
+    _tempVec2.y = 0;
+    if (_tempVec2.lengthSq() > 0) {
+        player.rotation.y = Math.atan2(_tempVec2.x, _tempVec2.z);
     }
     playerShadow.position.x = player.position.x;
     playerShadow.position.z = player.position.z;
@@ -736,11 +760,19 @@ const playerStaminaValue = document.querySelector('[data-player-stamina]');
 const playerStaminaFill = document.querySelector('[data-player-stamina-fill]');
 
 let isGameActive = false;
+let gameState = GAME_STATE.MENU;
 
 const state = {
     score: 0,
     best: 0,
 };
+
+// End screen elements
+const endScreen = document.querySelector('[data-end-screen]');
+const endTitle = document.querySelector('[data-end-title]');
+const endMessage = document.querySelector('[data-end-message]');
+const finalScoreEl = document.querySelector('[data-final-score]');
+const enemyCountEl = document.querySelector('[data-enemy-count]');
 
 if (resetButton) {
     resetButton.addEventListener('click', resetGame);
@@ -921,8 +953,13 @@ function updateEnemyLabels() {
         }
         const screenX = (enemyLabelVector.x * 0.5 + 0.5) * width;
         const screenY = (-enemyLabelVector.y * 0.5 + 0.5) * height;
-        label.style.transform = `translate(-50%, -100%) translate(${screenX}px, ${screenY}px)`;
-        label.textContent = `${Math.round(state.health)}/${state.maxHealth}`;
+        // Use translate3d for GPU acceleration
+        label.style.transform = `translate3d(${screenX}px, ${screenY}px, 0) translate(-50%, -100%)`;
+        // Only update text content when health changes
+        if (state.healthChanged) {
+            label.textContent = `${Math.round(state.health)}/${state.maxHealth}`;
+            state.healthChanged = false;
+        }
         label.classList.remove('is-hidden');
     }
 }
@@ -964,6 +1001,7 @@ function resetGame() {
         cow.position.copy(newPosition);
         cow.visible = true;
         state.health = state.maxHealth;
+        state.healthChanged = true;
         state.stunTimer = 0;
         state.playerHitCooldown = 0;
         state.mode = 'graze';
@@ -974,15 +1012,36 @@ function resetGame() {
             label.classList.add('is-hidden');
         }
     }
+    updateEnemyCount();
     updateUI();
 }
 
+function restartFromEndState() {
+    // Hide end screen
+    if (endScreen) {
+        endScreen.setAttribute('aria-hidden', 'true');
+    }
+
+    // Reset game state
+    gameState = GAME_STATE.PLAYING;
+    isGameActive = true;
+    document.body.dataset.gameState = 'playing';
+
+    // Reset game
+    resetGame();
+
+    // Restart the animation loop
+    clock.start();
+    animate();
+}
+
 function updatePlayer(delta) {
-    const move = new THREE.Vector3();
-    if (playerInput.forward) move.z -= 1;
-    if (playerInput.backward) move.z += 1;
-    if (playerInput.left) move.x -= 1;
-    if (playerInput.right) move.x += 1;
+    _tempVec1.set(0, 0, 0);
+    if (playerInput.forward) _tempVec1.z -= 1;
+    if (playerInput.backward) _tempVec1.z += 1;
+    if (playerInput.left) _tempVec1.x -= 1;
+    if (playerInput.right) _tempVec1.x += 1;
+    const move = _tempVec1;
     let state = 'idle';
     if (move.lengthSq() > 0) {
         move.normalize();
@@ -1036,10 +1095,10 @@ function handleCameraPan(delta) {
 
 function updateCamera(delta) {
     handleCameraPan(delta);
-    const target = player.position.clone().add(cameraState.manual);
-    const desiredPosition = target.clone().add(cameraState.offset);
-    camera.position.lerp(desiredPosition, 0.08);
-    camera.lookAt(target);
+    _tempVec2.copy(player.position).add(cameraState.manual);
+    _tempVec3.copy(_tempVec2).add(cameraState.offset);
+    camera.position.lerp(_tempVec3, 0.08);
+    camera.lookAt(_tempVec2);
 }
 
 let elapsed = 0;
@@ -1050,7 +1109,7 @@ function updateNodes(delta) {
         node.position.y = 1.2 + pulse * 0.5;
         const scale = 1 + Math.sin(elapsed * 3 + node.userData.offset) * 0.12;
         node.scale.setScalar(scale);
-        if (player.position.distanceTo(node.position) < 1.4) {
+        if (player.position.distanceToSquared(node.position) < 1.96) { // 1.4^2 = 1.96
             collectNode(node);
         }
     });
@@ -1107,21 +1166,21 @@ function updateHerd(delta) {
         if (state.mode === 'move') {
             cow.position.y = PLAYER_BASE_HEIGHT;
             const target = state.target;
-            const direction = target.clone().sub(cow.position);
-            const distance = direction.length();
+            _tempVec1.copy(target).sub(cow.position);
+            const distance = _tempVec1.length();
             if (distance < 0.4) {
                 startGrazing(state);
             } else {
-                direction.normalize().multiplyScalar(delta * 3);
-                const nextPos = cow.position.clone().add(direction);
-                nextPos.x = THREE.MathUtils.clamp(nextPos.x, -playArea, playArea);
-                nextPos.z = THREE.MathUtils.clamp(nextPos.z, -playArea, playArea);
-                nextPos.y = PLAYER_BASE_HEIGHT;
-                if (isPositionBlocked(nextPos)) {
+                _tempVec1.normalize().multiplyScalar(delta * 3);
+                _tempVec2.copy(cow.position).add(_tempVec1);
+                _tempVec2.x = THREE.MathUtils.clamp(_tempVec2.x, -playArea, playArea);
+                _tempVec2.z = THREE.MathUtils.clamp(_tempVec2.z, -playArea, playArea);
+                _tempVec2.y = PLAYER_BASE_HEIGHT;
+                if (isPositionBlocked(_tempVec2)) {
                     chooseNewTarget(state, cow.position);
                 } else {
-                    cow.position.copy(nextPos);
-                    cow.rotation.y = Math.atan2(direction.x, direction.z);
+                    cow.position.copy(_tempVec2);
+                    cow.rotation.y = Math.atan2(_tempVec1.x, _tempVec1.z);
                 }
             }
         } else {
@@ -1141,71 +1200,84 @@ function updateHerd(delta) {
 
 function applyPlayerDamage(amount) {
     playerState.health = THREE.MathUtils.clamp(playerState.health - amount, 0, PLAYER_MAX_HEALTH);
-    if (playerState.health <= 0) {
+    if (playerState.health <= 0 && gameState === GAME_STATE.PLAYING) {
         playerState.attack = null;
-        console.warn('Player defeated');
+        triggerGameOver();
+    }
+}
+
+function getAliveEnemyCount() {
+    return herdState.filter((s) => s && s.health > 0).length;
+}
+
+function updateEnemyCount() {
+    if (enemyCountEl) {
+        enemyCountEl.textContent = getAliveEnemyCount();
+    }
+}
+
+function triggerGameOver() {
+    gameState = GAME_STATE.GAME_OVER;
+    isGameActive = false;
+    document.body.dataset.gameState = 'ended';
+
+    if (endScreen) {
+        endScreen.setAttribute('aria-hidden', 'false');
+    }
+    if (endTitle) {
+        endTitle.textContent = 'Game Over';
+    }
+    if (endMessage) {
+        const enemiesDefeated = ENEMY_COUNT - getAliveEnemyCount();
+        endMessage.textContent = `You defeated ${enemiesDefeated} enem${enemiesDefeated === 1 ? 'y' : 'ies'} before falling.`;
+    }
+    if (finalScoreEl) {
+        finalScoreEl.textContent = Math.round(state.score);
+    }
+}
+
+function triggerVictory() {
+    gameState = GAME_STATE.VICTORY;
+    isGameActive = false;
+    document.body.dataset.gameState = 'ended';
+
+    if (endScreen) {
+        endScreen.setAttribute('aria-hidden', 'false');
+    }
+    if (endTitle) {
+        endTitle.textContent = 'Victory!';
+    }
+    if (endMessage) {
+        endMessage.textContent = 'You defeated the entire herd!';
+    }
+    if (finalScoreEl) {
+        finalScoreEl.textContent = Math.round(state.score);
+    }
+}
+
+function checkVictoryCondition() {
+    if (gameState !== GAME_STATE.PLAYING) return;
+    if (getAliveEnemyCount() === 0) {
+        triggerVictory();
     }
 }
 
 function applyEnemyDamage(index, amount) {
-    const state = herdState[index];
+    const enemyState = herdState[index];
     const cow = herd[index];
-    if (!state || !cow) return;
-    state.health = THREE.MathUtils.clamp(state.health - amount, 0, state.maxHealth);
-    if (state.health <= 0) {
-        state.mode = 'down';
+    if (!enemyState || !cow) return;
+    enemyState.health = THREE.MathUtils.clamp(enemyState.health - amount, 0, enemyState.maxHealth);
+    enemyState.healthChanged = true; // Flag for label update
+    if (enemyState.health <= 0) {
+        enemyState.mode = 'down';
         cow.visible = false;
         const label = enemyLabels[index];
         if (label) {
             label.classList.add('is-hidden');
         }
-        console.log(`[Enemy] Enemy ${state.id} defeated`);
-    }
-}
-
-function handlePlayerEnemyOverlaps() {
-    for (let index = 0; index < herd.length; index += 1) {
-        const cow = herd[index];
-        const state = herdState[index];
-        if (!cow || !state) continue;
-        if (state.health <= 0) continue;
-        if (state.playerHitCooldown > 0) continue;
-
-        const distance = cow.position.distanceTo(player.position);
-        if (distance <= PLAYER_COLLISION_RADIUS + ENEMY_COLLISION_RADIUS) {
-            applyPlayerDamage(PLAYER_COLLISION_DAMAGE);
-            state.playerHitCooldown = PLAYER_COLLISION_COOLDOWN;
-        }
-    }
-}
-
-function resolveAttackState(delta) {
-    const attackState = playerState.attack;
-    if (!attackState) return;
-    attackState.elapsed += delta;
-
-    if (
-        attackState.elapsed >= attackState.hitWindowStart &&
-        attackState.elapsed <= attackState.hitWindowEnd
-    ) {
-        for (let index = 0; index < herd.length; index += 1) {
-            const cow = herd[index];
-            const state = herdState[index];
-            if (!cow || !state) continue;
-            if (state.health <= 0) continue;
-            if (attackState.hitTargets.has(state.id)) continue;
-
-            const distance = cow.position.distanceTo(player.position);
-            if (distance <= attackState.range + ENEMY_COLLISION_RADIUS) {
-                applyEnemyDamage(index, attackState.damage);
-                state.stunTimer = Math.max(state.stunTimer, attackState.stunDuration);
-                attackState.hitTargets.add(state.id);
-            }
-        }
-    }
-
-    if (attackState.elapsed >= attackState.duration) {
-        playerState.attack = null;
+        console.log(`[Enemy] Enemy ${enemyState.id} defeated`);
+        updateEnemyCount();
+        checkVictoryCondition();
     }
 }
 
@@ -1215,8 +1287,51 @@ function updateCombat(delta) {
         0,
         PLAYER_MAX_STAMINA,
     );
-    resolveAttackState(delta);
-    handlePlayerEnemyOverlaps();
+
+    // Update attack state
+    const attackState = playerState.attack;
+    if (attackState) {
+        attackState.elapsed += delta;
+    }
+
+    // Combined loop for both attack resolution and player-enemy collision
+    const collisionRadiusSum = PLAYER_COLLISION_RADIUS + ENEMY_COLLISION_RADIUS;
+    const collisionRadiusSq = collisionRadiusSum * collisionRadiusSum;
+    const attackActive = attackState &&
+        attackState.elapsed >= attackState.hitWindowStart &&
+        attackState.elapsed <= attackState.hitWindowEnd;
+    const attackRange = attackActive ? attackState.range + ENEMY_COLLISION_RADIUS : 0;
+    const attackRangeSq = attackActive ? attackRange * attackRange : 0;
+
+    for (let index = 0; index < herd.length; index += 1) {
+        const cow = herd[index];
+        const state = herdState[index];
+        if (!cow || !state) continue;
+        if (state.health <= 0) continue;
+
+        const distanceSq = cow.position.distanceToSquared(player.position);
+
+        // Handle attack hits
+        if (attackActive && !attackState.hitTargets.has(state.id)) {
+            if (distanceSq <= attackRangeSq) {
+                applyEnemyDamage(index, attackState.damage);
+                state.stunTimer = Math.max(state.stunTimer, attackState.stunDuration);
+                attackState.hitTargets.add(state.id);
+            }
+        }
+
+        // Handle player-enemy collision damage
+        if (state.playerHitCooldown <= 0 && distanceSq <= collisionRadiusSq) {
+            applyPlayerDamage(PLAYER_COLLISION_DAMAGE);
+            state.playerHitCooldown = PLAYER_COLLISION_COOLDOWN;
+        }
+    }
+
+    // Clear attack state if duration elapsed
+    if (attackState && attackState.elapsed >= attackState.duration) {
+        playerState.attack = null;
+    }
+
     updateVitalsUI();
 }
 
@@ -1242,6 +1357,7 @@ function animate() {
 function startGame() {
     if (isGameActive) return;
     isGameActive = true;
+    gameState = GAME_STATE.PLAYING;
     document.body.dataset.gameState = 'playing';
     clock.start();
     resetGame();

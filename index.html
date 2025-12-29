@@ -22,6 +22,17 @@
             <button class="btn primary start-screen__button" type="button" data-start-button>Start Game</button>
         </div>
     </div>
+    <div class="end-screen" data-end-screen aria-hidden="true">
+        <div class="end-screen__content">
+            <h2 class="end-screen__title" data-end-title>Game Over</h2>
+            <div class="end-screen__score">
+                <span>Final Score</span>
+                <strong data-final-score>0</strong>
+            </div>
+            <p class="end-screen__message" data-end-message></p>
+            <p class="end-screen__hint">Press <kbd>R</kbd> to restart</p>
+        </div>
+    </div>
     <div id="game" role="presentation" aria-hidden="true"></div>
     <aside class="control-panel" aria-label="Camera settings panel" data-game-ui>
         <div class="control-panel__tabs">
@@ -102,6 +113,10 @@
             <div class="stat">
                 <span>Best</span>
                 <strong data-best>0</strong>
+            </div>
+            <div class="stat">
+                <span>Enemies</span>
+                <strong data-enemy-count>8</strong>
             </div>
         </div>
         <div class="hud-floating__meters">
